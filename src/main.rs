@@ -1,5 +1,7 @@
+mod adapters;
 mod cli;
 mod commands;
+mod core;
 
 use std::process::ExitCode;
 

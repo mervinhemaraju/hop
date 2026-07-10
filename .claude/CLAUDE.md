@@ -26,7 +26,7 @@ Do not start a phase without the user explicitly saying to begin it. Plan approv
 
 **Working mode (user decision, 2026-07-11): step-by-step delivery.** Implement in small runnable increments, not whole phases in one go. After each increment: show what was built, give the user the exact commands to run it themselves, and wait for their approval before the next increment. Keep the "Current step" line below up to date.
 
-Current step: Phase 1 increment 1 (clap surface + stub commands) delivered, awaiting user approval.
+Current step: Phase 1 increment 2 (real `hop status`: config dir resolution + active config name, core/adapters layers, thiserror) delivered, awaiting user approval. Increment 1 (clap surface + stubs) approved.
 
 ## Domain Knowledge (GCP auth)
 
