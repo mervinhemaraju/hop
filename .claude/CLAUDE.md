@@ -15,7 +15,14 @@ The architecture and command surface are not finalized yet. Do not invent comman
 
 ## Status
 
-Greenfield. There is no Cargo project yet; the repo contains only this file, the rules, and a `.gitignore`. The first milestone (scaffolding, dependency choices, command structure) will be planned together before any code is written.
+Cargo scaffold only: a hello-world `src/main.rs` and a zero-dependency `Cargo.toml` (edition 2024). No feature code exists yet.
+
+The milestone plan is agreed and lives at `.claude/PLAN.md` (6 phases: skeleton, local context read/write, auth + projects, console + impersonation, SSO / workforce identity, Homebrew release). Key decisions already made:
+
+- **Backend: hybrid.** gcloud binary for login flows only; gcloud config files read directly; direct API calls for project listing and impersonation; console via URL building.
+- **Switching: global state.** hop writes gcloud's own active configuration so all terminals and prompt tooling (starship) reflect the change. No per-shell env-var/eval pattern.
+
+Do not start a phase without the user explicitly saying to begin it. Plan approval alone is not the signal to write code.
 
 ## Domain Knowledge (GCP auth)
 
@@ -24,7 +31,7 @@ Things the tool works with; verify details against current Google docs rather th
 - **gcloud configurations**: named profiles stored under `~/.config/gcloud/`, each binding an account, project, and other properties. `gcloud config configurations` manages them.
 - **Application Default Credentials (ADC)**: `~/.config/gcloud/application_default_credentials.json`, plus the `GOOGLE_APPLICATION_CREDENTIALS` and `GOOGLE_CLOUD_PROJECT` env vars.
 - **Service account impersonation**: short-lived tokens via the IAM Credentials API (`generateAccessToken`), requiring `roles/iam.serviceAccountTokenCreator` on the target. Prefer impersonation over exported key files, always.
-- **Env-var based switching**: like granted.dev, changing the active context for a shell likely means printing export statements or integrating with the shell (subshell, shell function, or eval pattern); a child process cannot mutate the parent shell's environment.
+- **Global-state switching (decided)**: hop updates gcloud's own configuration (active configuration, project property, impersonation property) so every terminal shares one context and prompt tooling reflects it. The per-shell env-var/eval pattern granted.dev uses was considered and rejected by the user.
 
 ## Project Rules
 
