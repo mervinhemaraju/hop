@@ -1,0 +1,15 @@
+[package]
+name = "hop"
+version = "0.1.0"
+edition = "2024"
+# Minimum toolchain: edition 2024 requires 1.85; raise deliberately, never implicitly
+rust-version = "1.85"
+description = "Fast, interactive context switching for Google Cloud Platform"
+license = "MIT"
+repository = "https://github.com/mervinhemaraju/hop"
+
+[dependencies]
+
+[profile.release]
+strip = true
+lto = true
