@@ -1,8 +1,10 @@
+mod cli;
+mod commands;
+
 use std::process::ExitCode;
 
+use clap::Parser;
+
 fn main() -> ExitCode {
-    // Placeholder entry point; the real CLI surface (clap, layers) arrives
-    // with the first command and replaces this.
-    println!("hop: hello, world");
-    ExitCode::SUCCESS
+    commands::run(cli::Cli::parse())
 }

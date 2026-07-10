@@ -24,6 +24,10 @@ The milestone plan is agreed and lives at `.claude/PLAN.md` (6 phases: skeleton,
 
 Do not start a phase without the user explicitly saying to begin it. Plan approval alone is not the signal to write code.
 
+**Working mode (user decision, 2026-07-11): step-by-step delivery.** Implement in small runnable increments, not whole phases in one go. After each increment: show what was built, give the user the exact commands to run it themselves, and wait for their approval before the next increment. Keep the "Current step" line below up to date.
+
+Current step: Phase 1 increment 1 (clap surface + stub commands) delivered, awaiting user approval.
+
 ## Domain Knowledge (GCP auth)
 
 Things the tool works with; verify details against current Google docs rather than memory:
