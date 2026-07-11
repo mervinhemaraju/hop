@@ -2,7 +2,7 @@
 
 ## Context
 
-hop is a greenfield Rust CLI for GCP context switching, inspired by granted.dev's interactive UX. The repo currently has a hello-world scaffold (Cargo.toml, src/main.rs), full Claude rules/skills, and no dependencies. The user wants: launch GCP auth (including SSO / workforce identity), arrow-key navigation of projects, switching, browser console sessions, service account impersonation, and distribution via Homebrew (Windows later).
+hop is a greenfield Rust CLI for GCP context switching, inspired by granted.dev's interactive UX. The repo currently has a hello-world scaffold (Cargo.toml, src/main.rs), full Claude rules/skills, and no dependencies. The user wants: launch GCP auth (including SSO / workforce identity), arrow-key navigation of projects, switching, browser console sessions, service account impersonation, automatic re-authentication when switching with expired credentials (granted.dev-style: prompt by default, controllable via a user setting), and distribution via Homebrew (Windows later).
 
 **Backend decision: hybrid.**
 - gcloud binary: delegated to only for authentication flows (`gcloud auth login`, including SSO/workforce variants)
@@ -24,6 +24,8 @@ hop is a greenfield Rust CLI for GCP context switching, inspired by granted.dev'
 - `hop console [--project X]` - open GCP console in browser for the active (or given) context
 - `hop impersonate [sa]` - interactive SA picker; sets impersonation on the active config; `--clear` to stop
 - `hop status` - show active context (account, project, impersonation)
+
+Re-auth on expiry: `hop switch` / `hop impersonate` detect expired credentials for the target account and prompt to run the `hop login` flow (default: prompt first; a user setting makes it fully automatic or off). Non-interactive runs never block on this prompt; they fail with a distinct exit code per `rules/cli-ux.md`.
 
 ## Phases
 
@@ -47,8 +49,9 @@ Dependencies (each through `/add-crate` before landing):
 - Create README.md per `rules/docs.md`
 
 ### Phase 3: Auth + projects (network)
-- **`/gcp-check` first**: token acquisition from user creds (ADC vs `gcloud auth print-access-token` fallback), Resource Manager list/search endpoints, required scopes
+- **`/gcp-check` first**: token acquisition from user creds (ADC vs `gcloud auth print-access-token` fallback), Resource Manager list/search endpoints, required scopes; plus how to reliably detect an expired/revoked credential without dumping credential files (token refresh failure modes, gcloud exit codes/stderr)
 - `hop login` (exec gcloud), project listing with local cache (instant arrow keys; `--refresh` flag), full `hop switch`
+- Credential-expiry detection + re-auth prompt on switch (prompt-first default, per user decision 2026-07-12); introduces hop's own small settings file (auto re-auth: prompt/auto/off; location and format decided at implementation time)
 
 ### Phase 4: Console + impersonation
 - **`/gcp-check` first**: console URL parameters (project, authuser), `generateAccessToken`, `auth/impersonate_service_account` property semantics (gcloud AND ADC behaviour), SA listing API

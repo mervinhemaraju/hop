@@ -6,9 +6,9 @@
 
 Core capabilities (planned):
 
-- Switch between GCP projects of already-authenticated accounts, interactively or by name
+- Switch between multiple GCP projects and service account impersonations within an account, interactively or by name (impersonation via short-lived credentials, no key files)
 - Switch between multiple authenticated gcloud accounts
-- Impersonate service accounts interactively (short-lived credentials, no key files)
+- On switch, detect expired credentials and prompt to re-authenticate (like granted.dev does); a user setting can make this fully automatic or turn it off
 - Keep the active context visible and easy to inspect
 
 The architecture and command surface are not finalized yet. Do not invent commands, flags, or module layouts beyond what exists in the code; when the design is ambiguous, ask before assuming.
@@ -47,6 +47,7 @@ Things the tool works with; verify details against current Google docs rather th
 @rules/cross-platform.md
 @rules/docs.md
 @rules/gcloud-safety.md
+@rules/whats-next.md
 
 ## Verification
 
