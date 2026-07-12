@@ -9,10 +9,10 @@ use std::io::{IsTerminal, stderr, stdin};
 use inquire::ui::RenderConfig;
 use inquire::{Confirm, InquireError, Select};
 
-use crate::core::context::{Configuration, Project};
+use crate::core::context::{Configuration, Project, ServiceAccountInfo};
 use crate::core::error::PromptError;
-use crate::core::ports::{ConfigurationPicker, Confirmer, ProjectPicker};
-use crate::core::types::ProjectId;
+use crate::core::ports::{ConfigurationPicker, Confirmer, ProjectPicker, ServiceAccountPicker};
+use crate::core::types::{ProjectId, ServiceAccount};
 
 /// Arrow-key prompts with fuzzy filtering, backed by inquire.
 pub struct InquirePicker;
@@ -71,6 +71,25 @@ impl ProjectPicker for InquirePicker {
     }
 }
 
+impl ServiceAccountPicker for InquirePicker {
+    fn pick(&self, accounts: &[ServiceAccountInfo]) -> Result<Option<ServiceAccount>, PromptError> {
+        require_terminal()?;
+        let width = accounts
+            .iter()
+            .map(|a| a.email.as_str().len())
+            .max()
+            .unwrap_or(0);
+        let choices: Vec<Choice<ServiceAccount>> = accounts
+            .iter()
+            .map(|a| Choice {
+                value: a.email.clone(),
+                label: service_account_label(a, width),
+            })
+            .collect();
+        select("Impersonate service account:", choices)
+    }
+}
+
 impl Confirmer for InquirePicker {
     fn confirm(&self, message: &str) -> Result<Option<bool>, PromptError> {
         require_terminal()?;
@@ -121,6 +140,13 @@ fn configuration_label(configuration: &Configuration, width: usize) -> String {
         label.push_str("  (active)");
     }
     label
+}
+
+fn service_account_label(account: &ServiceAccountInfo, width: usize) -> String {
+    match &account.display_name {
+        Some(name) => format!("{:<width$}  {name}", account.email.as_str()),
+        None => account.email.to_string(),
+    }
 }
 
 fn project_label(project: &Project, width: usize) -> String {

@@ -148,6 +148,35 @@ pub fn set_property(text: &str, section: &str, key: &str, value: &str) -> String
     output
 }
 
+/// Remove `section`/`key` from a configuration file's text, mirroring what
+/// `gcloud config unset` leaves behind. Every other line is preserved byte
+/// for byte; removing an absent key returns the text unchanged.
+pub fn remove_property(text: &str, section: &str, key: &str) -> String {
+    let key = key.to_ascii_lowercase();
+    let mut output = String::with_capacity(text.len());
+    let mut in_target = false;
+    let mut removed = false;
+
+    for raw in text.split_inclusive('\n') {
+        let (content, _) = split_line_terminator(raw);
+        let trimmed = content.trim();
+        let is_header = trimmed.starts_with('[') && trimmed.ends_with(']') && trimmed.len() >= 2;
+        if is_header {
+            let name = trimmed[1..trimmed.len() - 1].trim();
+            in_target = name == section;
+        } else if in_target && !removed {
+            if let Some((existing_key, _)) = split_property_line(trimmed) {
+                if existing_key == key {
+                    removed = true;
+                    continue;
+                }
+            }
+        }
+        output.push_str(raw);
+    }
+    output
+}
+
 fn split_line_terminator(raw: &str) -> (&str, &str) {
     if let Some(content) = raw.strip_suffix("\r\n") {
         (content, "\r\n")
@@ -350,6 +379,39 @@ impersonate_service_account = sa@my-project-123.iam.gserviceaccount.com
             updated,
             "[core]\r\naccount = dev@example.com\r\nproject = new\r\n"
         );
+    }
+
+    #[test]
+    fn remove_property_deletes_only_the_target_line() {
+        // arrange
+        let text = "[core]\naccount = dev@example.com\n\n[auth]\nimpersonate_service_account = sa@my-project-123.iam.gserviceaccount.com\nother = kept\n";
+        // act
+        let updated = remove_property(text, "auth", "impersonate_service_account");
+        // assert
+        assert_eq!(
+            updated,
+            "[core]\naccount = dev@example.com\n\n[auth]\nother = kept\n"
+        );
+    }
+
+    #[test]
+    fn remove_property_is_a_no_op_when_the_key_is_absent() {
+        // arrange
+        let text = "[core]\naccount = dev@example.com\n";
+        // act
+        let updated = remove_property(text, "auth", "impersonate_service_account");
+        // assert
+        assert_eq!(updated, text);
+    }
+
+    #[test]
+    fn remove_property_ignores_the_same_key_in_other_sections() {
+        // arrange
+        let text = "[core]\nproject = keep-me\n[other]\nproject = remove-me\n";
+        // act
+        let updated = remove_property(text, "other", "project");
+        // assert
+        assert_eq!(updated, "[core]\nproject = keep-me\n[other]\n");
     }
 
     #[test]

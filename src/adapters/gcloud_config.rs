@@ -156,6 +156,43 @@ impl ConfigurationStore for GcloudConfigSource {
             crate::adapters::gcloud_ini::set_property(&text, "core", "project", project.as_str());
         write_atomic(&path, &updated)
     }
+
+    fn set_impersonation(
+        &self,
+        name: &str,
+        service_account: Option<&ServiceAccount>,
+    ) -> Result<(), ConfigError> {
+        let path = configuration_file(&self.config_dir, name);
+        if !path.is_file() {
+            return Err(ConfigError::UnknownConfiguration {
+                name: name.to_string(),
+            });
+        }
+        let text = fs::read_to_string(&path).map_err(|source| ConfigError::Unreadable {
+            path: path.clone(),
+            source,
+        })?;
+        GcloudIni::parse(&text).map_err(|err| ConfigError::Malformed {
+            path: path.clone(),
+            detail: err.to_string(),
+        })?;
+        // Clearing removes the line entirely, mirroring `gcloud config unset`
+        // (an empty value would be set-but-empty, not unset).
+        let updated = match service_account {
+            Some(sa) => crate::adapters::gcloud_ini::set_property(
+                &text,
+                "auth",
+                "impersonate_service_account",
+                sa.as_str(),
+            ),
+            None => crate::adapters::gcloud_ini::remove_property(
+                &text,
+                "auth",
+                "impersonate_service_account",
+            ),
+        };
+        write_atomic(&path, &updated)
+    }
 }
 
 // Write-then-rename: the target can never be left truncated or
@@ -468,6 +505,36 @@ mod tests {
         assert_eq!(
             written,
             "# comment kept\n[core]\naccount = dev@example.com\nproject = my-project-123\n"
+        );
+    }
+
+    #[test]
+    fn set_impersonation_writes_and_clears_the_property() {
+        // arrange
+        let dir = scratch_dir("set-impersonation");
+        write_configuration(&dir, "work", "[core]\naccount = dev@example.com\n");
+        let source = GcloudConfigSource {
+            config_dir: dir.clone(),
+        };
+        let sa = ServiceAccount::new("sa@my-project-123.iam.gserviceaccount.com").expect("valid");
+        let config_path = dir.join("configurations").join("config_work");
+        // act: set
+        source
+            .set_impersonation("work", Some(&sa))
+            .expect("set failed");
+        // assert
+        assert_eq!(
+            fs::read_to_string(&config_path).expect("read failed"),
+            "[core]\naccount = dev@example.com\n[auth]\nimpersonate_service_account = sa@my-project-123.iam.gserviceaccount.com\n"
+        );
+        // act: clear
+        source
+            .set_impersonation("work", None)
+            .expect("clear failed");
+        // assert: the line is removed, not emptied
+        assert_eq!(
+            fs::read_to_string(&config_path).expect("read failed"),
+            "[core]\naccount = dev@example.com\n[auth]\n"
         );
     }
 

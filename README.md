@@ -11,9 +11,11 @@ Early development (pre-0.1). Working today:
 - `hop status`: show the active configuration, account, project, and impersonation state
 - `hop switch [name]`: switch the active gcloud configuration and project, interactively or fully by flags
 - `hop login [account]`: authenticate via gcloud's browser flow
-- Automatic detection of expired credentials on switch, with a configurable re-auth prompt
+- `hop console`: open the GCP console for the active context, pinned to the right account
+- `hop impersonate [sa]`: service account impersonation with upfront verification, no key files ever
+- Automatic detection of expired credentials, with a configurable re-auth prompt
 
-Planned (see the milestone plan): SSO / workforce identity login, `hop console`, `hop impersonate`.
+Planned (see the milestone plan): SSO / workforce identity login, Homebrew packaging.
 
 ## Install
 
@@ -95,6 +97,30 @@ hop login --no-launch-browser    # print the auth URL instead (SSH sessions)
 
 Exit codes: `0` success, `1` login failed or gcloud unavailable, `2` invalid account.
 
+### `hop console [--project X] [--url]`
+
+Open the GCP console for the active context. The URL carries `authuser=<active account>`, so the right Google session opens even when several accounts are signed in.
+
+```sh
+hop console                           # active project's dashboard
+hop console --project my-project-123  # a specific project
+hop console --url                     # print the URL to stdout (no browser)
+```
+
+`--url` writes to stdout and nothing else, so it composes: `open "$(hop console --url)"`. Exit codes: `0` opened, `1` no project set or the browser failed, `2` invalid project id.
+
+### `hop impersonate [sa] [--clear]`
+
+Set service account impersonation on the active configuration (gcloud's `auth/impersonate_service_account` property, which all terminals see immediately).
+
+```sh
+hop impersonate        # pick from the active project's service accounts
+hop impersonate deploy@my-project-123.iam.gserviceaccount.com
+hop impersonate --clear
+```
+
+Before writing anything, hop proves the impersonation works by minting a short-lived token via the IAM Credentials API and discarding it. A missing `roles/iam.serviceAccountTokenCreator` on the target fails right there with exit code `5`, instead of silently breaking every later gcloud call. Other exit codes match `hop switch` (`4` expired credentials, `130` cancelled).
+
 ## Settings
 
 Optional, at `~/.config/hop/settings.json` (Linux/macOS) or `%APPDATA%\hop\settings.json` (Windows):
@@ -109,9 +135,9 @@ Optional, at `~/.config/hop/settings.json` (Linux/macOS) or `%APPDATA%\hop\setti
 
 The project cache lives next to it under `cache/`; delete it freely, `--refresh` rebuilds it.
 
-## How impersonation will work
+## How impersonation works
 
-Not implemented yet. The design: hop sets the `auth/impersonate_service_account` property on the active configuration and mints short-lived tokens via the IAM Credentials API. No service account key files are ever written to disk.
+hop sets the `auth/impersonate_service_account` property on the active configuration; from then on gcloud makes API requests as that service account. Tokens are short-lived and minted on demand via the IAM Credentials API. No service account key files are ever written to disk, and hop never prints or stores token material.
 
 ## Troubleshooting
 
@@ -119,6 +145,7 @@ Not implemented yet. The design: hop sets the `auth/impersonate_service_account`
 - **`credentials ... are expired or revoked`** (exit code 4): run `hop login <account>`; hop delegates entirely to gcloud for authentication.
 - **The project picker shows a stale list**: pass `--refresh`, or delete hop's `cache/` directory.
 - **`no active projects visible to this account`**: the account lacks `resourcemanager.projects.get` on any active project; check with `gcloud projects list`.
+- **`permission denied` when impersonating** (exit code 5): grant yourself `roles/iam.serviceAccountTokenCreator` on the target service account (an admin does this once; propagation can take a minute).
 - **hop looks at the wrong directory**: hop honours `CLOUDSDK_CONFIG`, the same override gcloud uses (and `HOP_CONFIG` for its own settings/cache). Unset them or point them at the right place.
 - **No colors wanted**: set `NO_COLOR=1` (see [no-color.org](https://no-color.org)); color is also disabled automatically when output is not a terminal.
 - **`failed to parse .../config_<name>`**: the configuration file is not in the format gcloud writes. Fix it by hand or recreate it with `gcloud config configurations create`.

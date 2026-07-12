@@ -1,6 +1,7 @@
 //! Orchestration layer: the composition root where core meets adapters,
 //! and the owner of process exit codes (rules/architecture.md).
 
+mod auth_flow;
 mod console;
 mod impersonate;
 mod login;
@@ -20,6 +21,8 @@ pub const EXIT_BAD_INPUT: u8 = 2;
 pub const EXIT_NOT_INTERACTIVE: u8 = 3;
 /// Credentials are expired or revoked and no re-auth happened.
 pub const EXIT_NOT_AUTHENTICATED: u8 = 4;
+/// Authenticated, but lacking permission (e.g. no token-creator role).
+pub const EXIT_PERMISSION_DENIED: u8 = 5;
 /// The user cancelled an interactive prompt (128 + SIGINT by convention).
 pub const EXIT_CANCELLED: u8 = 130;
 
@@ -39,17 +42,11 @@ pub fn run(cli: Cli) -> ExitCode {
             project,
             refresh,
         } => switch::run(name.as_deref(), project.as_deref(), refresh),
-        Command::Console { project } => console::run(project.as_deref()),
+        Command::Console { project, url } => console::run(project.as_deref(), url),
         Command::Impersonate {
             service_account,
             clear,
         } => impersonate::run(service_account.as_deref(), clear),
         Command::Status => status::run(),
     }
-}
-
-/// Shared stub for commands whose implementation lands in a later increment.
-fn not_implemented(command: &str, phase: &str) -> ExitCode {
-    eprintln!("hop {command}: not implemented yet (arrives in {phase})");
-    ExitCode::FAILURE
 }

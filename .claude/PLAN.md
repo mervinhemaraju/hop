@@ -72,6 +72,12 @@ Dependencies (each through `/add-crate` before landing):
 - README install section (brew install, plus from-source and Windows build instructions) per `rules/docs.md`
 - User performs: git tag, GitHub release + artifact upload, tap push (hop rules forbid Claude doing any of these)
 
+### Phase 7: Improvements (post-release backlog)
+
+Quality-of-life items collected during earlier phases; each is small and independent. Current list:
+
+- `hop console` optional section argument: `hop console [section]` opens the console on a specific product page instead of the dashboard, e.g. `hop console billing` opens Billing for the active project. Requires verifying the per-section console URL paths (they are not formally documented; confirm against the live console per `rules/gcloud-safety.md`) and extending the pure `core/console.rs` URL builder + clap surface. Combines with the existing `--project` and `--url` flags.
+
 ## Critical Files
 
 - `src/main.rs` (replace placeholder); new: `src/cli.rs`+`src/cli/`, `src/commands.rs`+`src/commands/`, `src/core.rs`+`src/core/`, `src/adapters.rs`+`src/adapters/` (no mod.rs, per `rules/rust.md`)

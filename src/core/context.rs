@@ -29,6 +29,15 @@ pub struct Project {
     pub display_name: Option<String>,
 }
 
+/// A service account as it appears in the impersonation picker.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ServiceAccountInfo {
+    /// The service account's email, used for impersonation.
+    pub email: ServiceAccount,
+    /// Human-readable name, if one is set.
+    pub display_name: Option<String>,
+}
+
 /// One gcloud configuration as it appears in listings and pickers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Configuration {

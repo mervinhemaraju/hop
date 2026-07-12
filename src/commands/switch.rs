@@ -7,6 +7,7 @@ use crate::adapters::gcloud_process::GcloudCli;
 use crate::adapters::hop_files::HopFiles;
 use crate::adapters::prompt::InquirePicker;
 use crate::adapters::resource_manager::ResourceManagerApi;
+use crate::commands::auth_flow::{AuthFlow, AuthFlowError, TokenOutcome, token_with_reauth};
 use crate::commands::{
     EXIT_BAD_INPUT, EXIT_CANCELLED, EXIT_NOT_AUTHENTICATED, EXIT_NOT_INTERACTIVE,
 };
@@ -16,7 +17,7 @@ use crate::core::ports::{
     Authenticator, ConfigurationPicker, ConfigurationStore, Confirmer, ProjectCache, ProjectLister,
     ProjectPicker, SettingsStore, TokenProvider,
 };
-use crate::core::settings::{ReauthPolicy, Settings};
+use crate::core::settings::Settings;
 use crate::core::types::{AccountEmail, ProjectId};
 
 // Any layer of the switch flow can fail; this keeps `?` working across all
@@ -33,6 +34,15 @@ enum SwitchError {
     Api(#[from] ApiError),
     #[error("invalid project id: {0}")]
     InvalidProject(#[from] ValidationError),
+}
+
+impl From<AuthFlowError> for SwitchError {
+    fn from(err: AuthFlowError) -> Self {
+        match err {
+            AuthFlowError::Auth(err) => Self::Auth(err),
+            AuthFlowError::Prompt(err) => Self::Prompt(err),
+        }
+    }
 }
 
 impl SwitchError {
@@ -278,31 +288,14 @@ fn obtain_projects(
             }
         }
     }
-    let token = match ports.tokens.access_token(account) {
-        Ok(token) => token,
-        Err(err @ AuthError::CredentialsInvalid { .. }) => match settings.reauth {
-            ReauthPolicy::Off => return Err(err.into()),
-            ReauthPolicy::Auto => {
-                ports.authenticator.login(Some(account), false)?;
-                ports.tokens.access_token(account)?
-            }
-            ReauthPolicy::Prompt => {
-                let question = format!("Credentials for {account} are expired. Log in now?");
-                match ports.confirmer.confirm(&question) {
-                    Ok(Some(true)) => {
-                        ports.authenticator.login(Some(account), false)?;
-                        ports.tokens.access_token(account)?
-                    }
-                    // "No" and Esc both mean: don't log in right now.
-                    Ok(Some(false)) | Ok(None) => return Ok(Projects::ReauthDeclined),
-                    // No terminal to ask on: surface the credential problem
-                    // itself, which carries the `hop login` instruction.
-                    Err(PromptError::NotInteractive) => return Err(err.into()),
-                    Err(other) => return Err(other.into()),
-                }
-            }
-        },
-        Err(other) => return Err(other.into()),
+    let flow = AuthFlow {
+        tokens: ports.tokens,
+        authenticator: ports.authenticator,
+        confirmer: ports.confirmer,
+    };
+    let token = match token_with_reauth(&flow, settings, account)? {
+        TokenOutcome::Token(token) => token,
+        TokenOutcome::Declined => return Ok(Projects::ReauthDeclined),
     };
     let projects = ports.lister.list_projects(&token)?;
     ports.cache.store_projects(account, &projects)?;
@@ -315,7 +308,8 @@ mod tests {
 
     use super::*;
     use crate::core::context::Configuration;
-    use crate::core::types::AccessToken;
+    use crate::core::settings::ReauthPolicy;
+    use crate::core::types::{AccessToken, ServiceAccount};
 
     struct FakeStore {
         configurations: Vec<Configuration>,
@@ -359,6 +353,14 @@ mod tests {
         fn set_project(&self, name: &str, project: &ProjectId) -> Result<(), ConfigError> {
             *self.project_set.borrow_mut() = Some((name.to_string(), project.as_str().to_string()));
             Ok(())
+        }
+
+        fn set_impersonation(
+            &self,
+            _: &str,
+            _: Option<&ServiceAccount>,
+        ) -> Result<(), ConfigError> {
+            panic!("set_impersonation must not be called from switch");
         }
     }
 

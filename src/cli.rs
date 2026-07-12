@@ -63,12 +63,43 @@ Exit codes:
         refresh: bool,
     },
     /// Open the GCP console in the browser for the active context
+    #[command(after_long_help = "\
+Examples:
+  hop console                          open the active project's dashboard
+  hop console --project my-project-123 open a specific project
+  hop console --url                    print the URL to stdout instead
+
+The URL pins the console to the active account (authuser), so the right
+Google session opens even with multiple accounts signed in.
+
+Exit codes: 0 opened, 1 no project set or browser failed, 2 invalid project id.")]
     Console {
         /// Open this project instead of the active one, e.g. my-project-123
         #[arg(long)]
         project: Option<String>,
+        /// Print the console URL to stdout instead of opening the browser
+        #[arg(long)]
+        url: bool,
     },
     /// Impersonate a service account on the active configuration
+    #[command(after_long_help = "\
+Examples:
+  hop impersonate                      pick from the active project's service accounts
+  hop impersonate deploy@my-project-123.iam.gserviceaccount.com
+  hop impersonate --clear              stop impersonating
+
+hop verifies impersonation by minting (and discarding) a short-lived token
+before writing anything, so a missing role fails immediately. Requires
+roles/iam.serviceAccountTokenCreator on the target service account.
+
+Exit codes:
+  0    impersonation set (verified) or cleared
+  1    could not read/write gcloud state or an API call failed
+  2    invalid service account email
+  3    interactive picker needed but no terminal available
+  4    credentials expired or revoked (run `hop login`)
+  5    permission denied minting a token (missing token-creator role)
+  130  cancelled (Esc, Ctrl+C, or declining the re-auth prompt)")]
     Impersonate {
         /// Service account email, e.g. deploy@my-project-123.iam.gserviceaccount.com
         service_account: Option<String>,

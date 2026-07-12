@@ -1,10 +1,10 @@
 //! Ports: traits describing what core needs from the outside world.
 //! Adapters implement them; core never knows which one (rules/architecture.md).
 
-use crate::core::context::{Configuration, Context, Project};
-use crate::core::error::{ApiError, AuthError, ConfigError, PromptError};
+use crate::core::context::{Configuration, Context, Project, ServiceAccountInfo};
+use crate::core::error::{ApiError, AuthError, BrowserError, ConfigError, PromptError};
 use crate::core::settings::Settings;
-use crate::core::types::{AccessToken, AccountEmail, ProjectId};
+use crate::core::types::{AccessToken, AccountEmail, ProjectId, ServiceAccount};
 
 /// Provides the currently active GCP context.
 ///
@@ -23,6 +23,12 @@ pub trait ConfigurationStore {
     fn activate(&self, name: &str) -> Result<(), ConfigError>;
     /// Set the project property on the named configuration.
     fn set_project(&self, name: &str, project: &ProjectId) -> Result<(), ConfigError>;
+    /// Set or clear (`None`) impersonation on the named configuration.
+    fn set_impersonation(
+        &self,
+        name: &str,
+        service_account: Option<&ServiceAccount>,
+    ) -> Result<(), ConfigError>;
 }
 
 /// Lets the user choose a configuration interactively.
@@ -87,4 +93,38 @@ pub trait ProjectCache {
 pub trait SettingsStore {
     /// Current settings, with defaults where the file is absent or silent.
     fn settings(&self) -> Result<Settings, ConfigError>;
+}
+
+/// Lists the service accounts of a project (for the impersonation picker).
+pub trait ServiceAccountLister {
+    /// Enabled service accounts in `project`, sorted by email.
+    fn list_service_accounts(
+        &self,
+        token: &AccessToken,
+        project: &ProjectId,
+    ) -> Result<Vec<ServiceAccountInfo>, ApiError>;
+}
+
+/// Proves impersonation works before hop commits it to config.
+pub trait ImpersonationVerifier {
+    /// Mint (and immediately discard) a short-lived token as
+    /// `service_account`. Success means the caller holds
+    /// `iam.serviceAccounts.getAccessToken` on it.
+    fn verify_impersonation(
+        &self,
+        token: &AccessToken,
+        service_account: &ServiceAccount,
+    ) -> Result<(), ApiError>;
+}
+
+/// Lets the user choose a service account interactively.
+pub trait ServiceAccountPicker {
+    /// Present the choices; `Ok(None)` means the user cancelled.
+    fn pick(&self, accounts: &[ServiceAccountInfo]) -> Result<Option<ServiceAccount>, PromptError>;
+}
+
+/// Opens a URL in the user's browser.
+pub trait BrowserOpener {
+    /// Hand `url` to the system's URL handler.
+    fn open_url(&self, url: &str) -> Result<(), BrowserError>;
 }

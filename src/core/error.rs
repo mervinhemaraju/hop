@@ -81,6 +81,13 @@ pub enum ApiError {
     Decode(String),
 }
 
+/// Failure to hand a URL to the system browser.
+#[derive(Debug, Error)]
+#[error("could not open the browser: {detail}; open the URL printed above manually")]
+pub struct BrowserError {
+    pub detail: String,
+}
+
 /// Failures while running an interactive prompt. User cancellation is not an
 /// error (pickers return `Ok(None)` for it); these are real failures.
 #[derive(Debug, Error)]
