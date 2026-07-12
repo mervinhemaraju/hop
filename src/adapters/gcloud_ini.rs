@@ -101,9 +101,6 @@ fn split_property_line(line: &str) -> Option<(String, String)> {
 /// Set `section`/`key` to `value` in a configuration file's text, touching
 /// nothing else: every other line is preserved byte for byte, including
 /// comments, spacing, and CRLF line endings.
-// Dead-code allowance: the consumers are the project-property write (Phase 3)
-// and impersonation (Phase 4). Tests pin the behaviour until then.
-#[allow(dead_code)]
 pub fn set_property(text: &str, section: &str, key: &str, value: &str) -> String {
     let key = key.to_ascii_lowercase();
     let mut output =
@@ -151,7 +148,6 @@ pub fn set_property(text: &str, section: &str, key: &str, value: &str) -> String
     output
 }
 
-#[allow(dead_code)]
 fn split_line_terminator(raw: &str) -> (&str, &str) {
     if let Some(content) = raw.strip_suffix("\r\n") {
         (content, "\r\n")

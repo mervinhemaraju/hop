@@ -94,6 +94,39 @@ impl fmt::Display for ServiceAccount {
     }
 }
 
+/// A short-lived OAuth2 access token.
+///
+/// Deliberately has no `Display` and a redacted `Debug` so it cannot leak
+/// into logs or error messages (rules/security.md). The accessor is named
+/// `secret` so every exposure site is easy to audit.
+#[derive(Clone)]
+pub struct AccessToken(String);
+
+impl AccessToken {
+    /// Wrap a raw token, trimming the trailing newline gcloud prints.
+    pub fn new(raw: impl Into<String>) -> Result<Self, ValidationError> {
+        let raw = raw.into();
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            return Err(ValidationError::Empty {
+                what: "access token",
+            });
+        }
+        Ok(Self(trimmed.to_string()))
+    }
+
+    /// The raw token value, for Authorization headers only.
+    pub fn secret(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for AccessToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("AccessToken([redacted])")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

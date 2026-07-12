@@ -15,7 +15,7 @@ The architecture and command surface are not finalized yet. Do not invent comman
 
 ## Status
 
-Phases 1 and 2 implemented: layered structure (cli/commands/core/adapters) with clap dispatch, validated domain newtypes, ports + fakes, a defensive gcloud INI parser (read and byte-preserving write), working `hop status` (full context) and `hop switch` (inquire picker with fuzzy filter + non-interactive `hop switch <name>`; atomic write of `active_config`). Dependencies: clap, thiserror, inquire (all vetted via /add-crate; cargo audit clean).
+Phases 1-3 implemented: layered structure (cli/commands/core/adapters), validated newtypes (incl. redacted-Debug `AccessToken`), ports + fakes, defensive gcloud INI parser (read + byte-preserving write), `hop status` (full context), `hop login` (delegates to `gcloud auth login`), and full `hop switch`: configuration picker then project picker (Resource Manager v3 `projects:search` via ureq, per-account 0600 cache, `--refresh`), non-interactive forms (`<name>`, `--project`), expired-credential detection via `gcloud auth print-access-token` exit status with prompt/auto/off reauth policy in `~/.config/hop/settings.json`. Exit codes 0/1/2/3/4/130. Dependencies: clap, thiserror, inquire, serde, serde_json, ureq (no default features; cookies off) — all vetted via /add-crate, cargo audit clean.
 
 The milestone plan is agreed and lives at `.claude/PLAN.md` (6 phases: skeleton, local context read/write, auth + projects, console + impersonation, SSO / workforce identity, Homebrew release). Key decisions already made:
 
@@ -26,7 +26,7 @@ Do not start a phase without the user explicitly saying to begin it. Plan approv
 
 **Working mode (user decision, 2026-07-11): step-by-step delivery.** Implement in small runnable increments, not whole phases in one go. After each increment: show what was built, give the user the exact commands to run it themselves, and wait for their approval before the next increment. Keep the "Current step" line below up to date.
 
-Current step: Phase 2 implemented in full on 2026-07-12 (user explicitly requested the whole phase in one go, overriding per-increment delivery for this phase), awaiting user review: INI parser + `set_property` writer, full `hop status`, configuration listing, `hop switch` (picker + by-name) with exit codes 0/1/2/3/130, README.md, cli-ux rule premise updated per PLAN. 46 tests green; verified end-to-end against a fake config dir via CLOUDSDK_CONFIG (real gcloud state untouched). Note: real config file formats were NOT inspected on this machine (user declined); parser is defensive, user to verify with real `hop switch`. Next: Phase 3 (auth + projects, `/gcp-check` first) on user go.
+Current step: Phase 3 implemented in full on 2026-07-12 (whole-phase mode again, per user), awaiting user review. `/gcp-check` done first: docs confirmed `projects:search` v3 endpoint/fields/scopes, `print-access-token` semantics (no documented exit codes for expiry, so any non-zero exit = needs reauth), login flags. 64 tests green. E2E verified: offline `--project` write against fake dirs; real-network `--refresh` fetched and cached the user's actual 4 projects (real gcloud state untouched, verified by diff); expired-cred path live-tested (exit 4). The picker flows need the user's TTY test: `hop switch` should now offer configuration then project. Next: Phase 4 (console + impersonation, `/gcp-check` first) on user go.
 
 ## Domain Knowledge (GCP auth)
 

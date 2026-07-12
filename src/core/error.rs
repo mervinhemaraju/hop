@@ -50,6 +50,37 @@ pub enum ConfigError {
     NoConfigurations,
 }
 
+/// Failures while authenticating or acquiring tokens through gcloud.
+/// Never contains token material; only gcloud's own diagnostics.
+#[derive(Debug, Error)]
+pub enum AuthError {
+    #[error(
+        "could not run gcloud: {detail}; install the Google Cloud SDK and make sure `gcloud` is on your PATH"
+    )]
+    GcloudUnavailable { detail: String },
+    #[error(
+        "credentials for {account} are expired or revoked ({detail}); run `hop login {account}` to re-authenticate"
+    )]
+    CredentialsInvalid { account: String, detail: String },
+    #[error("gcloud login did not complete; run `hop login` to try again")]
+    LoginFailed,
+    #[error("gcloud returned an empty access token; try `gcloud auth login` manually")]
+    EmptyToken,
+}
+
+/// Failures calling GCP APIs. Never contains token material.
+#[derive(Debug, Error)]
+pub enum ApiError {
+    #[error("GCP API returned HTTP {0}; if this persists, re-authenticate with `hop login`")]
+    Status(u16),
+    #[error("network error calling GCP: {0}; check your connection and try again")]
+    Network(String),
+    #[error(
+        "could not decode the GCP response: {0}; the API may have changed, check for a hop update"
+    )]
+    Decode(String),
+}
+
 /// Failures while running an interactive prompt. User cancellation is not an
 /// error (pickers return `Ok(None)` for it); these are real failures.
 #[derive(Debug, Error)]

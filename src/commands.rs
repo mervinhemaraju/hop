@@ -18,14 +18,27 @@ use crate::cli::{Cli, Command};
 pub const EXIT_BAD_INPUT: u8 = 2;
 /// An interactive prompt was needed but no TTY is available.
 pub const EXIT_NOT_INTERACTIVE: u8 = 3;
+/// Credentials are expired or revoked and no re-auth happened.
+pub const EXIT_NOT_AUTHENTICATED: u8 = 4;
 /// The user cancelled an interactive prompt (128 + SIGINT by convention).
 pub const EXIT_CANCELLED: u8 = 130;
 
 /// Running `hop` with no subcommand defaults to the interactive switcher.
 pub fn run(cli: Cli) -> ExitCode {
-    match cli.command.unwrap_or(Command::Switch { name: None }) {
-        Command::Login { account } => login::run(account.as_deref()),
-        Command::Switch { name } => switch::run(name.as_deref()),
+    match cli.command.unwrap_or(Command::Switch {
+        name: None,
+        project: None,
+        refresh: false,
+    }) {
+        Command::Login {
+            account,
+            no_launch_browser,
+        } => login::run(account.as_deref(), no_launch_browser),
+        Command::Switch {
+            name,
+            project,
+            refresh,
+        } => switch::run(name.as_deref(), project.as_deref(), refresh),
         Command::Console { project } => console::run(project.as_deref()),
         Command::Impersonate {
             service_account,

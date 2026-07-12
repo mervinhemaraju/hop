@@ -4,6 +4,7 @@
 pub mod context;
 pub mod error;
 pub mod ports;
+pub mod settings;
 // Dead-code allowance: the as_str accessors have no production caller until
 // console URL building and API calls (Phases 3-4). Remove it then.
 #[allow(dead_code)]

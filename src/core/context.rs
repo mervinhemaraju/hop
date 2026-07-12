@@ -20,6 +20,15 @@ pub struct Context {
     pub impersonation: Option<ServiceAccount>,
 }
 
+/// A GCP project the user can switch to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Project {
+    /// The immutable project id used in API calls, e.g. `my-project-123`.
+    pub id: ProjectId,
+    /// Human-readable name shown alongside the id, if the API provided one.
+    pub display_name: Option<String>,
+}
+
 /// One gcloud configuration as it appears in listings and pickers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Configuration {

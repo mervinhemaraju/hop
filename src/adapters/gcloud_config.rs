@@ -132,20 +132,48 @@ impl ConfigurationStore for GcloudConfigSource {
                 name: name.to_string(),
             });
         }
-        let path = self.config_dir.join("active_config");
-        // Write-then-rename: active_config can never be left truncated or
-        // half-written, which is the safety net the plan asks for.
-        let temp = self.config_dir.join("active_config.hop-tmp");
-        fs::write(&temp, name).map_err(|source| ConfigError::WriteFailed {
-            path: temp.clone(),
+        write_atomic(&self.config_dir.join("active_config"), name)
+    }
+
+    fn set_project(&self, name: &str, project: &ProjectId) -> Result<(), ConfigError> {
+        let path = configuration_file(&self.config_dir, name);
+        if !path.is_file() {
+            return Err(ConfigError::UnknownConfiguration {
+                name: name.to_string(),
+            });
+        }
+        let text = fs::read_to_string(&path).map_err(|source| ConfigError::Unreadable {
+            path: path.clone(),
             source,
         })?;
-        fs::rename(&temp, &path).map_err(|source| {
-            // Best effort: a stray temp file is harmless but untidy.
-            let _ = fs::remove_file(&temp);
-            ConfigError::WriteFailed { path, source }
-        })
+        // Parse first so a malformed file fails loudly instead of being
+        // silently rewritten by the property editor.
+        GcloudIni::parse(&text).map_err(|err| ConfigError::Malformed {
+            path: path.clone(),
+            detail: err.to_string(),
+        })?;
+        let updated =
+            crate::adapters::gcloud_ini::set_property(&text, "core", "project", project.as_str());
+        write_atomic(&path, &updated)
     }
+}
+
+// Write-then-rename: the target can never be left truncated or
+// half-written, which is the safety net the plan asks for.
+fn write_atomic(path: &Path, contents: &str) -> Result<(), ConfigError> {
+    let temp = path.with_extension("hop-tmp");
+    fs::write(&temp, contents).map_err(|source| ConfigError::WriteFailed {
+        path: temp.clone(),
+        source,
+    })?;
+    fs::rename(&temp, path).map_err(|source| {
+        // Best effort: a stray temp file is harmless but untidy.
+        let _ = fs::remove_file(&temp);
+        ConfigError::WriteFailed {
+            path: path.to_path_buf(),
+            source,
+        }
+    })
 }
 
 /// Name of the currently active gcloud configuration.
@@ -417,6 +445,44 @@ mod tests {
         );
         let untouched = fs::read_to_string(dir.join("active_config")).expect("read failed");
         assert_eq!(untouched, "default", "active_config must be untouched");
+    }
+
+    #[test]
+    fn set_project_updates_only_the_project_property() {
+        // arrange
+        let dir = scratch_dir("set-project");
+        write_configuration(
+            &dir,
+            "work",
+            "# comment kept\n[core]\naccount = dev@example.com\nproject = old-project\n",
+        );
+        let source = GcloudConfigSource {
+            config_dir: dir.clone(),
+        };
+        let project = ProjectId::new("my-project-123").expect("valid");
+        // act
+        source.set_project("work", &project).expect("set failed");
+        // assert: byte-level preservation of everything else
+        let written = fs::read_to_string(dir.join("configurations").join("config_work"))
+            .expect("read failed");
+        assert_eq!(
+            written,
+            "# comment kept\n[core]\naccount = dev@example.com\nproject = my-project-123\n"
+        );
+    }
+
+    #[test]
+    fn set_project_rejects_an_unknown_configuration() {
+        // arrange
+        let dir = scratch_dir("set-project-unknown");
+        let source = GcloudConfigSource { config_dir: dir };
+        let project = ProjectId::new("my-project-123").expect("valid");
+        // act
+        let err = source
+            .set_project("ghost", &project)
+            .expect_err("wrote to a ghost");
+        // assert
+        assert!(matches!(err, ConfigError::UnknownConfiguration { .. }));
     }
 
     #[test]
