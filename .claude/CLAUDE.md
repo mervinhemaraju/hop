@@ -26,7 +26,7 @@ Do not start a phase without the user explicitly saying to begin it. Plan approv
 
 **Working mode (user decision, 2026-07-11): step-by-step delivery.** Implement in small runnable increments, not whole phases in one go. After each increment: show what was built, give the user the exact commands to run it themselves, and wait for their approval before the next increment. Keep the "Current step" line below up to date.
 
-Current step: Phase 1 increments 1 (clap surface + stubs) and 2 (real `hop status`: config dir resolution + active config name, core/adapters layers, thiserror) both approved as of 2026-07-12. Next increment not yet defined or started; wait for the user to say go.
+Current step: Phase 1 increments 1 (clap surface + stubs) and 2 (real `hop status`) approved. Increment 3 (domain types + first port) implemented in full on 2026-07-12, awaiting user review/approval: validated newtypes + `ValidationError`, `Context`, `ContextSource` port, `GcloudConfigSource` adapter, status refactored to injection (`run_with(&impl ContextSource) -> Result<(), ConfigError>`, exit-code mapping in `run()`), fake-based tests. 15 tests green. Remaining Phase 1 note: `#[allow(dead_code)]` on core::types stays until the Phase 2 parser calls the constructors.
 
 ## Domain Knowledge (GCP auth)
 

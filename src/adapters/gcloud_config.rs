@@ -6,7 +6,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
+use crate::core::context::Context;
 use crate::core::error::ConfigError;
+use crate::core::ports::ContextSource;
 
 /// Environment variable gcloud itself honors to relocate its config directory.
 pub const CLOUDSDK_CONFIG_ENV: &str = "CLOUDSDK_CONFIG";
@@ -40,6 +42,42 @@ fn platform_default_dir() -> Result<PathBuf, ConfigError> {
     env::home_dir()
         .map(|home| home.join(".config").join("gcloud"))
         .ok_or(ConfigError::HomeDirUnavailable)
+}
+
+/// Reads the active context from gcloud's config files on disk.
+///
+/// The production implementation of [`ContextSource`]; the directory is
+/// resolved once at construction so every read agrees on the location.
+pub struct GcloudConfigSource {
+    config_dir: PathBuf,
+}
+
+impl GcloudConfigSource {
+    /// Build a source rooted at the resolved gcloud config directory.
+    pub fn new() -> Result<Self, ConfigError> {
+        Ok(Self {
+            config_dir: config_dir()?,
+        })
+    }
+
+    /// The directory this source reads from.
+    pub fn config_dir(&self) -> &Path {
+        &self.config_dir
+    }
+}
+
+impl ContextSource for GcloudConfigSource {
+    fn active_context(&self) -> Result<Context, ConfigError> {
+        let name = active_config_name(&self.config_dir)?;
+        // Only the name until the Phase 2 configuration-file parser lands;
+        // account, project, and impersonation live inside the config file.
+        Ok(Context {
+            name,
+            account: None,
+            project: None,
+            impersonation: None,
+        })
+    }
 }
 
 /// Name of the currently active gcloud configuration.
@@ -97,6 +135,21 @@ mod tests {
         let name = active_config_name(&dir).expect("read failed");
         // assert
         assert_eq!(name, "work");
+    }
+
+    #[test]
+    fn source_reads_the_active_context_through_the_port() {
+        // arrange
+        let dir = scratch_dir("source-active-context");
+        fs::write(dir.join("active_config"), "work\n").expect("write failed");
+        let source = GcloudConfigSource { config_dir: dir };
+        // act: call through the trait, exactly as commands will
+        let context = ContextSource::active_context(&source).expect("read failed");
+        // assert
+        assert_eq!(context.name, "work");
+        assert_eq!(context.account, None);
+        assert_eq!(context.project, None);
+        assert_eq!(context.impersonation, None);
     }
 
     #[test]
