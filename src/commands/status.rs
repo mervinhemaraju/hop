@@ -4,9 +4,8 @@ use crate::adapters::gcloud_config::GcloudConfigSource;
 use crate::core::error::ConfigError;
 use crate::core::ports::ContextSource;
 
-/// Show the active gcloud context. This increment shows the configuration
-/// name only; account, project, and impersonation details arrive with the
-/// config parser in Phase 2.
+/// Show the active gcloud context: configuration, account, project, and
+/// impersonation state.
 pub fn run() -> ExitCode {
     // Composition root: the production adapter is chosen here and only here;
     // everything below sees just the port.
@@ -33,7 +32,23 @@ pub fn run() -> ExitCode {
 fn run_with(source: &impl ContextSource) -> Result<(), ConfigError> {
     let context = source.active_context()?;
     eprintln!("active configuration: {}", context.name);
+    eprintln!(
+        "account:              {}",
+        display_or_unset(context.account.as_ref())
+    );
+    eprintln!(
+        "project:              {}",
+        display_or_unset(context.project.as_ref())
+    );
+    eprintln!(
+        "impersonation:        {}",
+        display_or_unset(context.impersonation.as_ref())
+    );
     Ok(())
+}
+
+fn display_or_unset(value: Option<&impl std::fmt::Display>) -> String {
+    value.map_or_else(|| "(not set)".to_string(), ToString::to_string)
 }
 
 #[cfg(test)]

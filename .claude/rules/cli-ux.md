@@ -1,12 +1,12 @@
 # CLI / UX Rules
 
-hop is designed to be eval'd or sourced by a shell (like granted.dev). Output discipline is a correctness issue, not cosmetics.
+hop switches context by writing gcloud's own global state; it is not eval'd or sourced by the shell (that granted.dev-style model was considered and rejected). Output discipline stays a hard rule regardless: pipes and scripts depend on it.
 
 ## Output Streams
 
-- **stdout is reserved for machine-consumable output**: export statements, completion scripts, JSON. Nothing else, ever.
+- **stdout is reserved for machine-consumable output**: completion scripts, JSON, future scriptable output. Nothing else, ever.
 - All human-facing messages (prompts, progress, warnings, errors) go to **stderr**
-- Interactive prompts must render on stderr / the TTY so `eval "$(hop ...)"` still works
+- Interactive prompts must render on stderr / the TTY so stdout stays clean even when piped
 
 ## Exit Codes
 

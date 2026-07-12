@@ -3,3 +3,5 @@
 //! (rules/cross-platform.md).
 
 pub mod gcloud_config;
+pub mod gcloud_ini;
+pub mod prompt;

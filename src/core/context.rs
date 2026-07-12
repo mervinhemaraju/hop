@@ -19,3 +19,16 @@ pub struct Context {
     /// Service account being impersonated, if impersonation is active.
     pub impersonation: Option<ServiceAccount>,
 }
+
+/// One gcloud configuration as it appears in listings and pickers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Configuration {
+    /// Configuration name (the `<name>` in `configurations/config_<name>`).
+    pub name: String,
+    /// Account the configuration binds, if any.
+    pub account: Option<AccountEmail>,
+    /// Project the configuration binds, if any.
+    pub project: Option<ProjectId>,
+    /// Whether this is the currently active configuration.
+    pub is_active: bool,
+}

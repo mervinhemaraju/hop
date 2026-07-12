@@ -11,11 +11,21 @@ use std::process::ExitCode;
 
 use crate::cli::{Cli, Command};
 
+// Exit code classes (rules/cli-ux.md): distinct codes per failure class so
+// scripts can react. 0 = success, 1 = general failure. clap itself exits 2
+// on usage errors, so bad input shares that class.
+/// Bad input, e.g. a configuration name that does not exist.
+pub const EXIT_BAD_INPUT: u8 = 2;
+/// An interactive prompt was needed but no TTY is available.
+pub const EXIT_NOT_INTERACTIVE: u8 = 3;
+/// The user cancelled an interactive prompt (128 + SIGINT by convention).
+pub const EXIT_CANCELLED: u8 = 130;
+
 /// Running `hop` with no subcommand defaults to the interactive switcher.
 pub fn run(cli: Cli) -> ExitCode {
-    match cli.command.unwrap_or(Command::Switch) {
+    match cli.command.unwrap_or(Command::Switch { name: None }) {
         Command::Login { account } => login::run(account.as_deref()),
-        Command::Switch => switch::run(),
+        Command::Switch { name } => switch::run(name.as_deref()),
         Command::Console { project } => console::run(project.as_deref()),
         Command::Impersonate {
             service_account,

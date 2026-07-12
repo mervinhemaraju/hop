@@ -4,7 +4,7 @@
 pub mod context;
 pub mod error;
 pub mod ports;
-// Dead-code allowance: the identifier constructors and accessors have no
-// caller until the Phase 2 configuration-file parser. Remove it then.
+// Dead-code allowance: the as_str accessors have no production caller until
+// console URL building and API calls (Phases 3-4). Remove it then.
 #[allow(dead_code)]
 pub mod types;
