@@ -37,10 +37,10 @@ hop never creates, modifies, or deletes cloud resources. It is a switcher, not a
 ### Homebrew (macOS / Linux)
 
 ```sh
-brew install mervinhemaraju/hop/hop
+brew install mervinhemaraju/tap/hop
 ```
 
-This taps `mervinhemaraju/homebrew-hop` automatically. Available from the first tagged release (v0.1.0); until then, install from source.
+This taps `mervinhemaraju/homebrew-tap` automatically. Available from the first tagged release (v0.1.0); until then, install from source.
 
 ### From source (all platforms)
 

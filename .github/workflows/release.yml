@@ -1,0 +1,114 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Third-party actions are pinned to commit SHAs (tags are movable); the
+# trailing comment records the human-readable version being pinned.
+jobs:
+  # Fail fast before spending 4 platform builds on a mistagged commit
+  version-check:
+    name: tag matches Cargo.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # No job here pushes; the default credential persistence is
+          # attack surface with no use
+          persist-credentials: false
+      - name: Compare tag with crate version
+        run: |
+          crate_version="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$crate_version" != "$tag_version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match Cargo.toml version $crate_version" >&2
+            exit 1
+          fi
+
+  build:
+    name: build (${{ matrix.target }})
+    needs: version-check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macos-latest runners are arm64; the x86_64 target cross-compiles
+          # on the same runner without extra tooling
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          # musl: fully static binary, runs on any distro (hop's TLS is
+          # rustls/ring, no OpenSSL, so musl needs only musl-gcc)
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch
+        with:
+          # Required with a SHA pin: the action can no longer infer the
+          # toolchain from its own ref name
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.1
+        with:
+          key: ${{ matrix.target }}
+      - name: Install musl toolchain
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: cargo build --release --target ${{ matrix.target }}
+      # Archives carry the binary at their root: the Homebrew formula's
+      # `bin.install "hop"` depends on that layout
+      - name: Package (tar.gz)
+        if: runner.os != 'Windows'
+        run: |
+          staging="hop-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          mkdir "$staging"
+          cp "target/${{ matrix.target }}/release/hop" LICENSE README.md "$staging/"
+          tar -czf "$staging.tar.gz" -C "$staging" .
+      - name: Package (zip)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $staging = "hop-$env:GITHUB_REF_NAME-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path $staging | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/hop.exe", "LICENSE", "README.md" -Destination $staging
+          Compress-Archive -Path "$staging/*" -DestinationPath "$staging.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hop-${{ matrix.target }}
+          path: |
+            hop-*.tar.gz
+            hop-*.zip
+          if-no-files-found: error
+
+  release:
+    name: draft the GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum hop-* > SHA256SUMS
+      # Draft on purpose: the release is reviewed and published by a human
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          draft: true
+          files: artifacts/*
+          generate_release_notes: true
