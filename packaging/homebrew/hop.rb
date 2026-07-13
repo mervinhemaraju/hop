@@ -10,17 +10,17 @@ class Hop < Formula
   on_macos do
     on_arm do
       url "https://github.com/mervinhemaraju/hop/releases/download/v0.1.0/hop-v0.1.0-aarch64-apple-darwin.tar.gz"
-      sha256 "REPLACE_WITH_SHA256_OF_aarch64-apple-darwin"
+      sha256 "2c7b149857aff5e4c908e671f3ab57b96a7472ac24efbd38d11d4214d08359c5"
     end
     on_intel do
       url "https://github.com/mervinhemaraju/hop/releases/download/v0.1.0/hop-v0.1.0-x86_64-apple-darwin.tar.gz"
-      sha256 "REPLACE_WITH_SHA256_OF_x86_64-apple-darwin"
+      sha256 "d832a0094f7a9bcc967472a28a3f43a53116bd8f1c0dc91a32507598805afd4b"
     end
   end
 
   on_linux do
     url "https://github.com/mervinhemaraju/hop/releases/download/v0.1.0/hop-v0.1.0-x86_64-unknown-linux-musl.tar.gz"
-    sha256 "REPLACE_WITH_SHA256_OF_x86_64-unknown-linux-musl"
+    sha256 "e1cc985847097fabeacdcbc25a1c8ff2911840bfebae4d8745134060038a9845"
   end
 
   def install
