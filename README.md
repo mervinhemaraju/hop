@@ -27,6 +27,8 @@ $ hop
 
 hop never creates, modifies, or deletes cloud resources. It is a switcher, not a management tool: the only thing it touches is your local gcloud context, plus minting short-lived tokens when you ask for impersonation.
 
+Extended documentation lives in [docs/](docs/README.md): detailed install, configuration, and usage guides, plus maintainer runbooks for releases and Homebrew.
+
 ## Requirements
 
 - The [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) (`gcloud`) installed and on your `PATH`; hop delegates all login flows to it and reads its configuration files
