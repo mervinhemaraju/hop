@@ -84,6 +84,8 @@ impl ContextSource for GcloudConfigSource {
             impersonation: property(&ini, &path, "auth", "impersonate_service_account", |raw| {
                 ServiceAccount::new(raw)
             })?,
+            // Kept raw: it is a filesystem path, not a validated identifier.
+            login_config_file: ini.get("auth", "login_config_file").map(str::to_string),
             name,
         })
     }
@@ -120,6 +122,7 @@ impl ConfigurationStore for GcloudConfigSource {
                 account: property(&ini, &path, "core", "account", |raw| AccountEmail::new(raw))?,
                 project: property(&ini, &path, "core", "project", |raw| ProjectId::new(raw))?,
                 is_active: name == active,
+                login_config_file: ini.get("auth", "login_config_file").map(str::to_string),
             });
         }
         configurations.sort_by(|a, b| a.name.cmp(&b.name));

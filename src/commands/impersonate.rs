@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::ExitCode;
 
 use thiserror::Error;
@@ -117,6 +118,8 @@ pub fn run(service_account: Option<&str>, clear: bool) -> ExitCode {
             tokens: &gcloud,
             authenticator: &gcloud,
             confirmer: &picker,
+            // Workforce sessions re-auth through their login config.
+            login_config: context.login_config_file.as_deref().map(Path::new),
         },
     };
     match impersonate_flow(&ports, &context, settings, service_account) {
@@ -205,6 +208,7 @@ mod tests {
             account: account.map(|a| AccountEmail::new(a).expect("valid")),
             project: project.map(|p| ProjectId::new(p).expect("valid")),
             impersonation: None,
+            login_config_file: None,
         }
     }
 
@@ -314,7 +318,12 @@ mod tests {
     }
 
     impl Authenticator for ValidTokens {
-        fn login(&self, _: Option<&AccountEmail>, _: bool) -> Result<(), AuthError> {
+        fn login(
+            &self,
+            _: Option<&AccountEmail>,
+            _: bool,
+            _: Option<&Path>,
+        ) -> Result<(), AuthError> {
             panic!("login must not be called");
         }
     }
@@ -344,6 +353,7 @@ mod tests {
                     tokens: &self.tokens,
                     authenticator: &self.tokens,
                     confirmer: &self.tokens,
+                    login_config: None,
                 },
             }
         }

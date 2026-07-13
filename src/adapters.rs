@@ -8,5 +8,6 @@ pub mod gcloud_ini;
 pub mod gcloud_process;
 pub mod hop_files;
 pub mod iam_api;
+pub mod login_config;
 pub mod prompt;
 pub mod resource_manager;

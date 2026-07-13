@@ -35,8 +35,15 @@ pub fn run(cli: Cli) -> ExitCode {
     }) {
         Command::Login {
             account,
+            sso,
+            login_config,
             no_launch_browser,
-        } => login::run(account.as_deref(), no_launch_browser),
+        } => login::run(
+            account.as_deref(),
+            sso,
+            login_config.as_deref(),
+            no_launch_browser,
+        ),
         Command::Switch {
             name,
             project,

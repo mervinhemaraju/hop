@@ -3,6 +3,8 @@
 //! login flows and token minting only; arguments are always passed as
 //! arrays, never concatenated into shell strings (rules/security.md).
 
+use std::ffi::OsString;
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 use crate::core::error::AuthError;
@@ -24,11 +26,18 @@ impl Authenticator for GcloudCli {
         &self,
         account: Option<&AccountEmail>,
         no_launch_browser: bool,
+        login_config: Option<&Path>,
     ) -> Result<(), AuthError> {
         let mut command = Command::new(GCLOUD);
         command.args(["auth", "login", "--brief"]);
         if no_launch_browser {
             command.arg("--no-launch-browser");
+        }
+        if let Some(path) = login_config {
+            // Built as one OsString so non-UTF-8 paths survive intact.
+            let mut flag = OsString::from("--login-config=");
+            flag.push(path);
+            command.arg(flag);
         }
         if let Some(account) = account {
             command.arg(account.as_str());

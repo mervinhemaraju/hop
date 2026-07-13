@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::ExitCode;
 
 use thiserror::Error;
@@ -233,20 +234,25 @@ fn project_half(
         ports.store.set_project(target, &project)?;
         return Ok(ProjectOutcome::Set(project));
     }
-    let Some(account) = configurations
-        .iter()
-        .find(|c| c.name == target)
-        .and_then(|c| c.account.clone())
-    else {
+    let target_configuration = configurations.iter().find(|c| c.name == target);
+    let Some(account) = target_configuration.and_then(|c| c.account.clone()) else {
         return Ok(ProjectOutcome::NoAccount);
     };
+    // Workforce configurations carry a login config; re-auth needs it.
+    let login_config = target_configuration.and_then(|c| c.login_config_file.clone());
     // Without a terminal there is nothing to pick with, so avoid network
     // entirely unless the user explicitly asked to refresh the cache.
     let interactive = ports.project_picker.available();
     if !interactive && !request.refresh {
         return Ok(ProjectOutcome::NotInteractive);
     }
-    let projects = match obtain_projects(ports, settings, &account, request.refresh)? {
+    let projects = match obtain_projects(
+        ports,
+        settings,
+        &account,
+        login_config.as_deref().map(Path::new),
+        request.refresh,
+    )? {
         Projects::List(projects) => projects,
         Projects::ReauthDeclined => return Ok(ProjectOutcome::Declined),
     };
@@ -279,6 +285,7 @@ fn obtain_projects(
     ports: &Ports,
     settings: Settings,
     account: &AccountEmail,
+    login_config: Option<&Path>,
     refresh: bool,
 ) -> Result<Projects, SwitchError> {
     if !refresh {
@@ -292,6 +299,7 @@ fn obtain_projects(
         tokens: ports.tokens,
         authenticator: ports.authenticator,
         confirmer: ports.confirmer,
+        login_config,
     };
     let token = match token_with_reauth(&flow, settings, account)? {
         TokenOutcome::Token(token) => token,
@@ -327,6 +335,7 @@ mod tests {
                         account: account.map(|a| AccountEmail::new(a).expect("valid test account")),
                         project: None,
                         is_active: *is_active,
+                        login_config_file: None,
                     })
                     .collect(),
                 activated: RefCell::new(None),
@@ -442,7 +451,12 @@ mod tests {
     }
 
     impl Authenticator for FakeGcloud {
-        fn login(&self, _: Option<&AccountEmail>, _: bool) -> Result<(), AuthError> {
+        fn login(
+            &self,
+            _: Option<&AccountEmail>,
+            _: bool,
+            _: Option<&Path>,
+        ) -> Result<(), AuthError> {
             *self.invalid.borrow_mut() = false;
             *self.login_called.borrow_mut() = true;
             Ok(())

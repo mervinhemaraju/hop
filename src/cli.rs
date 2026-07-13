@@ -15,17 +15,29 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Authenticate a Google account via gcloud's browser flow
+    /// Authenticate via gcloud: Google account or SSO (workforce identity)
     #[command(after_long_help = "\
 Examples:
-  hop login                        authenticate a new or existing account
-  hop login dev@example.com        re-authenticate a specific account
-  hop login --no-launch-browser    print the auth URL instead of opening a browser
+  hop login                             authenticate a Google account
+  hop login dev@example.com             re-authenticate a specific account
+  hop login --sso                       SSO via the configured workforce login config
+  hop login --login-config wf.json      SSO via an explicit login config file
+  hop login --no-launch-browser         print the auth URL instead of opening a browser
 
-Exit codes: 0 success, 1 login failed or gcloud unavailable, 2 invalid account.")]
+--sso uses the auth/login_config_file property from the active configuration
+(set by `gcloud iam workforce-pools create-login-config <provider> --activate`).
+
+Exit codes: 0 success, 1 login failed, gcloud unavailable, or no login config
+found for --sso, 2 invalid account or missing --login-config file.")]
     Login {
         /// Account email to authenticate, e.g. dev@example.com
         account: Option<String>,
+        /// Sign in with SSO using the active configuration's workforce login config
+        #[arg(long)]
+        sso: bool,
+        /// Workforce login config file to use (implies SSO), e.g. wf-login.json
+        #[arg(long)]
+        login_config: Option<String>,
         /// Print the authorization URL instead of opening a browser (for SSH sessions)
         #[arg(long)]
         no_launch_browser: bool,

@@ -14,8 +14,9 @@ Early development (pre-0.1). Working today:
 - `hop console`: open the GCP console for the active context, pinned to the right account
 - `hop impersonate [sa]`: service account impersonation with upfront verification, no key files ever
 - Automatic detection of expired credentials, with a configurable re-auth prompt
+- SSO via workforce identity federation: `hop login --sso`, federated console URLs, identity shown in `hop status`
 
-Planned (see the milestone plan): SSO / workforce identity login, Homebrew packaging.
+Planned (see the milestone plan): Homebrew packaging.
 
 ## Install
 
@@ -51,10 +52,13 @@ Show the active context. Works offline; reads only local gcloud files.
 $ hop status
 config directory:     /home/me/.config/gcloud
 active configuration: work
+identity:             Google account
 account:              dev@example.com
 project:              my-project-123
 impersonation:        (not set)
 ```
+
+Workforce (SSO) sessions show `identity: workforce federation` and the `principal://...` identifier as the account.
 
 ### `hop switch [name]`
 
@@ -96,6 +100,21 @@ hop login --no-launch-browser    # print the auth URL instead (SSH sessions)
 ```
 
 Exit codes: `0` success, `1` login failed or gcloud unavailable, `2` invalid account.
+
+### SSO / workforce identity federation
+
+If your organization uses [workforce identity federation](https://docs.cloud.google.com/iam/docs/workforce-identity-federation), set it up once with gcloud, then hop handles the rest:
+
+```sh
+gcloud iam workforce-pools create-login-config \
+    locations/global/workforcePools/my-pool/providers/my-okta \
+    --output-file=wf-login.json --activate
+
+hop login --sso                       # sign in through your IdP
+hop login --login-config wf-login.json  # or with an explicit config file
+```
+
+After that: `hop status` shows `identity: workforce federation`; `hop console` opens the **federated** console (`auth.cloud.google` sign-in, `console.cloud.google` domain) instead of the standard one; re-auth prompts on expiry use the SSO flow automatically; and impersonation works as usual, subject to your organization's IAM grants.
 
 ### `hop console [--project X] [--url]`
 

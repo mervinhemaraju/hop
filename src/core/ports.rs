@@ -1,6 +1,8 @@
 //! Ports: traits describing what core needs from the outside world.
 //! Adapters implement them; core never knows which one (rules/architecture.md).
 
+use std::path::Path;
+
 use crate::core::context::{Configuration, Context, Project, ServiceAccountInfo};
 use crate::core::error::{ApiError, AuthError, BrowserError, ConfigError, PromptError};
 use crate::core::settings::Settings;
@@ -58,10 +60,12 @@ pub trait Confirmer {
 pub trait Authenticator {
     /// Log in, optionally to a specific account. `no_launch_browser` follows
     /// gcloud's flag of the same name for remote/SSH sessions.
+    /// `login_config` selects the workforce (SSO) flow when present.
     fn login(
         &self,
         account: Option<&AccountEmail>,
         no_launch_browser: bool,
+        login_config: Option<&Path>,
     ) -> Result<(), AuthError>;
 }
 

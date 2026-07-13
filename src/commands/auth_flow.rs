@@ -1,6 +1,8 @@
 //! Shared credential acquisition with the user's re-auth policy, used by
 //! every command that needs an access token (switch, impersonate).
 
+use std::path::Path;
+
 use thiserror::Error;
 
 use crate::core::error::{AuthError, PromptError};
@@ -8,11 +10,13 @@ use crate::core::ports::{Authenticator, Confirmer, TokenProvider};
 use crate::core::settings::{ReauthPolicy, Settings};
 use crate::core::types::{AccessToken, AccountEmail};
 
-/// The auth-related ports a token acquisition needs.
+/// The auth-related ports a token acquisition needs, plus the workforce
+/// login config (if any) so re-auth uses the right flow for the identity.
 pub(super) struct AuthFlow<'a> {
     pub tokens: &'a dyn TokenProvider,
     pub authenticator: &'a dyn Authenticator,
     pub confirmer: &'a dyn Confirmer,
+    pub login_config: Option<&'a Path>,
 }
 
 pub(super) enum TokenOutcome {
@@ -41,14 +45,16 @@ pub(super) fn token_with_reauth(
         Err(err @ AuthError::CredentialsInvalid { .. }) => match settings.reauth {
             ReauthPolicy::Off => return Err(err.into()),
             ReauthPolicy::Auto => {
-                flow.authenticator.login(Some(account), false)?;
+                flow.authenticator
+                    .login(Some(account), false, flow.login_config)?;
                 flow.tokens.access_token(account)?
             }
             ReauthPolicy::Prompt => {
                 let question = format!("Credentials for {account} are expired. Log in now?");
                 match flow.confirmer.confirm(&question) {
                     Ok(Some(true)) => {
-                        flow.authenticator.login(Some(account), false)?;
+                        flow.authenticator
+                            .login(Some(account), false, flow.login_config)?;
                         flow.tokens.access_token(account)?
                     }
                     // "No" and Esc both mean: don't log in right now.

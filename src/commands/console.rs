@@ -1,9 +1,12 @@
+use std::path::Path;
 use std::process::ExitCode;
 
 use crate::adapters::browser::SystemBrowser;
 use crate::adapters::gcloud_config::GcloudConfigSource;
+use crate::adapters::login_config::load_workforce_provider;
 use crate::commands::EXIT_BAD_INPUT;
-use crate::core::console::console_url;
+use crate::core::console::{console_url, federated_console_url};
+use crate::core::context::IdentityKind;
 use crate::core::ports::{BrowserOpener, ContextSource};
 use crate::core::types::ProjectId;
 
@@ -35,7 +38,22 @@ pub fn run(project: Option<&str>, url_only: bool) -> ExitCode {
             }
         },
     };
-    let url = console_url(&project, context.account.as_ref());
+    // Workforce sessions go through the federated console sign-in URL; the
+    // standard console URL would prompt for a Google account they lack.
+    let url = match context.identity() {
+        IdentityKind::Workforce => {
+            let Some(raw_path) = context.login_config_file.as_deref() else {
+                return fail(
+                    "workforce session, but the configuration has no auth/login_config_file property; re-run `gcloud iam workforce-pools create-login-config <provider> --activate`",
+                );
+            };
+            match load_workforce_provider(Path::new(raw_path)) {
+                Ok(provider) => federated_console_url(&provider, Some(&project)),
+                Err(err) => return fail(&err.to_string()),
+            }
+        }
+        IdentityKind::Google => console_url(&project, context.account.as_ref()),
+    };
     if url_only {
         // stdout on purpose: this is machine-consumable output
         // (rules/cli-ux.md), e.g. `open "$(hop console --url)"`.

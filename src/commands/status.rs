@@ -31,7 +31,12 @@ pub fn run() -> ExitCode {
 // run() owns the mapping to process exit status.
 fn run_with(source: &impl ContextSource) -> Result<(), ConfigError> {
     let context = source.active_context()?;
+    let identity = match context.identity() {
+        crate::core::context::IdentityKind::Google => "Google account",
+        crate::core::context::IdentityKind::Workforce => "workforce federation",
+    };
     eprintln!("active configuration: {}", context.name);
+    eprintln!("identity:             {identity}");
     eprintln!(
         "account:              {}",
         display_or_unset(context.account.as_ref())
@@ -83,6 +88,7 @@ mod tests {
             account: None,
             project: None,
             impersonation: None,
+            login_config_file: None,
         });
         // act
         let result = run_with(&source);
