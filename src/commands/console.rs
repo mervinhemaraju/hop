@@ -1,13 +1,16 @@
+use std::env;
 use std::path::Path;
 use std::process::ExitCode;
 
-use crate::adapters::browser::SystemBrowser;
+use crate::adapters::browser::{CustomBrowser, SystemBrowser};
 use crate::adapters::gcloud_config::GcloudConfigSource;
+use crate::adapters::hop_files::HopFiles;
 use crate::adapters::login_config::load_workforce_provider;
 use crate::commands::EXIT_BAD_INPUT;
 use crate::core::console::{console_url, federated_console_url};
 use crate::core::context::IdentityKind;
-use crate::core::ports::{BrowserOpener, ContextSource};
+use crate::core::ports::{BrowserOpener, ContextSource, SettingsStore};
+use crate::core::settings::effective_browser;
 use crate::core::types::ProjectId;
 
 /// Open the GCP console in the browser for the active (or given) context.
@@ -60,8 +63,20 @@ pub fn run(project: Option<&str>, url_only: bool) -> ExitCode {
         println!("{url}");
         return ExitCode::SUCCESS;
     }
+    let settings = match HopFiles::new().and_then(|files| files.settings()) {
+        Ok(settings) => settings,
+        Err(err) => return fail(&err.to_string()),
+    };
     eprintln!("opening {url}");
-    match SystemBrowser.open_url(&url) {
+    // BROWSER env var wins over the setting; neither means the OS default.
+    let opened = match effective_browser(
+        env::var_os("BROWSER").as_deref(),
+        settings.browser.as_deref(),
+    ) {
+        Some(command) => CustomBrowser::new(command).open_url(&url),
+        None => SystemBrowser.open_url(&url),
+    };
+    match opened {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => fail(&err.to_string()),
     }

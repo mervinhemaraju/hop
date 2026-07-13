@@ -27,6 +27,9 @@ Examples:
 --sso uses the auth/login_config_file property from the active configuration
 (set by `gcloud iam workforce-pools create-login-config <provider> --activate`).
 
+The browser is chosen from the BROWSER environment variable, then the
+\"browser\" setting in hop's settings.json, then the system default.
+
 Exit codes: 0 success, 1 login failed, gcloud unavailable, or no login config
 found for --sso, 2 invalid account or missing --login-config file.")]
     Login {
@@ -83,6 +86,9 @@ Examples:
 
 The URL pins the console to the active account (authuser), so the right
 Google session opens even with multiple accounts signed in.
+
+The browser is chosen from the BROWSER environment variable, then the
+\"browser\" setting in hop's settings.json, then the system default.
 
 Exit codes: 0 opened, 1 no project set or browser failed, 2 invalid project id.")]
     Console {

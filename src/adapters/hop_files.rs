@@ -57,6 +57,17 @@ fn platform_default_dir() -> Result<PathBuf, ConfigError> {
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct SettingsFile {
     reauth: Option<String>,
+    browser: Option<String>,
+}
+
+// The settings file is hand-written, so a leading `~/` is expanded the way
+// a shell would; anything else is taken literally.
+fn expand_home(raw: &str) -> Result<PathBuf, ConfigError> {
+    let Some(rest) = raw.strip_prefix("~/") else {
+        return Ok(PathBuf::from(raw));
+    };
+    let home = env::home_dir().ok_or(ConfigError::HomeDirUnavailable)?;
+    Ok(home.join(rest))
 }
 
 impl SettingsStore for HopFiles {
@@ -88,7 +99,18 @@ impl SettingsStore for HopFiles {
                 });
             }
         };
-        Ok(Settings { reauth })
+        let browser = match file.browser.as_deref() {
+            None => None,
+            Some("") => {
+                return Err(ConfigError::Malformed {
+                    path,
+                    detail: "browser must not be empty; remove the key to use the system default"
+                        .to_string(),
+                });
+            }
+            Some(raw) => Some(expand_home(raw)?),
+        };
+        Ok(Settings { reauth, browser })
     }
 }
 
@@ -250,6 +272,55 @@ mod tests {
         let settings = files.settings().expect("load failed");
         // assert
         assert_eq!(settings.reauth, ReauthPolicy::Prompt);
+        assert_eq!(settings.browser, None);
+    }
+
+    #[test]
+    fn settings_parse_a_browser_command() {
+        // arrange
+        let dir = scratch_dir("settings-browser");
+        fs::write(
+            dir.join("settings.json"),
+            "{\"browser\": \"/usr/local/bin/my-browser\"}",
+        )
+        .expect("write failed");
+        let files = HopFiles { dir };
+        // act
+        let settings = files.settings().expect("load failed");
+        // assert
+        assert_eq!(
+            settings.browser,
+            Some(PathBuf::from("/usr/local/bin/my-browser"))
+        );
+    }
+
+    #[test]
+    fn settings_expand_home_in_the_browser_command() {
+        // arrange
+        let dir = scratch_dir("settings-browser-home");
+        fs::write(
+            dir.join("settings.json"),
+            "{\"browser\": \"~/bin/my-browser\"}",
+        )
+        .expect("write failed");
+        let files = HopFiles { dir };
+        let home = env::home_dir().expect("test needs a home dir");
+        // act
+        let settings = files.settings().expect("load failed");
+        // assert
+        assert_eq!(settings.browser, Some(home.join("bin/my-browser")));
+    }
+
+    #[test]
+    fn settings_reject_an_empty_browser_command() {
+        // arrange
+        let dir = scratch_dir("settings-browser-empty");
+        fs::write(dir.join("settings.json"), "{\"browser\": \"\"}").expect("write failed");
+        let files = HopFiles { dir };
+        // act
+        let err = files.settings().expect_err("accepted empty browser");
+        // assert
+        assert!(matches!(err, ConfigError::Malformed { .. }));
     }
 
     #[test]

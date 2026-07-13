@@ -107,7 +107,7 @@ pub fn run(service_account: Option<&str>, clear: bool) -> ExitCode {
         Err(err) => return fail(&err.to_string()),
     };
     let picker = InquirePicker;
-    let gcloud = GcloudCli;
+    let gcloud = GcloudCli::new(settings.browser.clone());
     let api = IamApi::new();
     let ports = Ports {
         store: &source,
@@ -122,7 +122,7 @@ pub fn run(service_account: Option<&str>, clear: bool) -> ExitCode {
             login_config: context.login_config_file.as_deref().map(Path::new),
         },
     };
-    match impersonate_flow(&ports, &context, settings, service_account) {
+    match impersonate_flow(&ports, &context, &settings, service_account) {
         Ok(Some(sa)) => {
             eprintln!("impersonating {sa} on {} (verified)", context.name);
             ExitCode::SUCCESS
@@ -153,7 +153,7 @@ fn fail(message: &str) -> ExitCode {
 fn impersonate_flow(
     ports: &Ports,
     context: &Context,
-    settings: Settings,
+    settings: &Settings,
     target: Option<&str>,
 ) -> Result<Option<ServiceAccount>, ImpersonateError> {
     let Some(account) = context.account.clone() else {
@@ -380,7 +380,7 @@ mod tests {
         let outcome = impersonate_flow(
             &fix.ports(),
             &context(Some("dev@example.com"), None),
-            Settings::default(),
+            &Settings::default(),
             Some("deploy@my-project-123.iam.gserviceaccount.com"),
         )
         .expect("flow failed");
@@ -405,7 +405,7 @@ mod tests {
         let err = impersonate_flow(
             &fix.ports(),
             &context(Some("dev@example.com"), None),
-            Settings::default(),
+            &Settings::default(),
             Some("deploy@my-project-123.iam.gserviceaccount.com"),
         )
         .expect_err("denied mint was accepted");
@@ -422,7 +422,7 @@ mod tests {
         let outcome = impersonate_flow(
             &fix.ports(),
             &context(Some("dev@example.com"), Some("my-project-123")),
-            Settings::default(),
+            &Settings::default(),
             None,
         )
         .expect("flow failed");
@@ -443,7 +443,7 @@ mod tests {
         let outcome = impersonate_flow(
             &fix.ports(),
             &context(Some("dev@example.com"), Some("my-project-123")),
-            Settings::default(),
+            &Settings::default(),
             None,
         )
         .expect("flow failed");
@@ -460,7 +460,7 @@ mod tests {
         let err = impersonate_flow(
             &fix.ports(),
             &context(Some("dev@example.com"), None),
-            Settings::default(),
+            &Settings::default(),
             None,
         )
         .expect_err("missing project was accepted");
@@ -476,7 +476,7 @@ mod tests {
         let err = impersonate_flow(
             &fix.ports(),
             &context(None, Some("my-project-123")),
-            Settings::default(),
+            &Settings::default(),
             None,
         )
         .expect_err("missing account was accepted");
@@ -493,7 +493,7 @@ mod tests {
         let err = impersonate_flow(
             &fix.ports(),
             &context(Some("dev@example.com"), Some("my-project-123")),
-            Settings::default(),
+            &Settings::default(),
             None,
         )
         .expect_err("empty list was accepted");
@@ -509,7 +509,7 @@ mod tests {
         let err = impersonate_flow(
             &fix.ports(),
             &context(Some("dev@example.com"), None),
-            Settings::default(),
+            &Settings::default(),
             Some("not a service account"),
         )
         .expect_err("invalid service account was accepted");

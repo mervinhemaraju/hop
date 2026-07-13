@@ -123,7 +123,7 @@ pub fn run(name: Option<&str>, project: Option<&str>, refresh: bool) -> ExitCode
         Err(err) => return fail(&err.to_string()),
     };
     let picker = InquirePicker;
-    let gcloud = GcloudCli;
+    let gcloud = GcloudCli::new(settings.browser.clone());
     let api = ResourceManagerApi::new();
     let ports = Ports {
         store: &store,
@@ -140,7 +140,7 @@ pub fn run(name: Option<&str>, project: Option<&str>, refresh: bool) -> ExitCode
         project,
         refresh,
     };
-    match switch_flow(&ports, settings, &request) {
+    match switch_flow(&ports, &settings, &request) {
         Ok(FlowOutcome::Cancelled) => {
             eprintln!("cancelled");
             ExitCode::from(EXIT_CANCELLED)
@@ -192,7 +192,7 @@ fn report_project(outcome: &ProjectOutcome) {
 // The testable body: configuration half, then project half.
 fn switch_flow(
     ports: &Ports,
-    settings: Settings,
+    settings: &Settings,
     request: &Request,
 ) -> Result<FlowOutcome, SwitchError> {
     let configurations = ports.store.list()?;
@@ -223,7 +223,7 @@ fn switch_flow(
 
 fn project_half(
     ports: &Ports,
-    settings: Settings,
+    settings: &Settings,
     request: &Request,
     target: &str,
     configurations: &[crate::core::context::Configuration],
@@ -283,7 +283,7 @@ enum Projects {
 // token, re-authenticating according to the user's policy.
 fn obtain_projects(
     ports: &Ports,
-    settings: Settings,
+    settings: &Settings,
     account: &AccountEmail,
     login_config: Option<&Path>,
     refresh: bool,
@@ -583,7 +583,7 @@ mod tests {
         // act
         let outcome = switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(None, None, false),
         )
         .expect("flow failed");
@@ -612,7 +612,7 @@ mod tests {
         // act
         switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(Some("work"), None, true),
         )
         .expect("flow failed");
@@ -632,7 +632,7 @@ mod tests {
         // act
         let outcome = switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(Some("work"), None, false),
         )
         .expect("flow failed");
@@ -656,7 +656,7 @@ mod tests {
         // act
         let outcome = switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(Some("work"), None, false),
         )
         .expect("flow failed");
@@ -679,13 +679,14 @@ mod tests {
         fix.gcloud = FakeGcloud::expired();
         let settings = Settings {
             reauth: ReauthPolicy::Off,
+            ..Settings::default()
         };
         let ports = Ports {
             confirmer: &PanickingConfirmer,
             ..fix.ports()
         };
         // act
-        let err = switch_flow(&ports, settings, &request(Some("work"), None, false))
+        let err = switch_flow(&ports, &settings, &request(Some("work"), None, false))
             .expect_err("expired credentials were accepted");
         // assert
         assert!(matches!(
@@ -701,13 +702,14 @@ mod tests {
         fix.gcloud = FakeGcloud::expired();
         let settings = Settings {
             reauth: ReauthPolicy::Auto,
+            ..Settings::default()
         };
         let ports = Ports {
             confirmer: &PanickingConfirmer,
             ..fix.ports()
         };
         // act
-        let outcome = switch_flow(&ports, settings, &request(Some("work"), None, false))
+        let outcome = switch_flow(&ports, &settings, &request(Some("work"), None, false))
             .expect("flow failed");
         // assert
         assert!(*fix.gcloud.login_called.borrow());
@@ -732,7 +734,7 @@ mod tests {
         // act
         let outcome = switch_flow(
             &ports,
-            Settings::default(),
+            &Settings::default(),
             &request(Some("work"), Some("other-project-456"), false),
         )
         .expect("flow failed");
@@ -757,7 +759,7 @@ mod tests {
         // act
         let err = switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(Some("work"), Some("bad project"), false),
         )
         .expect_err("accepted a project id with a space");
@@ -777,7 +779,7 @@ mod tests {
         // act
         let outcome = switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(Some("work"), None, false),
         )
         .expect("flow failed");
@@ -805,7 +807,7 @@ mod tests {
         // act
         let outcome = switch_flow(
             &ports,
-            Settings::default(),
+            &Settings::default(),
             &request(Some("work"), None, false),
         )
         .expect("flow failed");
@@ -834,7 +836,7 @@ mod tests {
         // act
         let outcome = switch_flow(
             &ports,
-            Settings::default(),
+            &Settings::default(),
             &request(Some("work"), None, false),
         )
         .expect("flow failed");
@@ -856,7 +858,7 @@ mod tests {
         // act
         let outcome = switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(None, None, false),
         )
         .expect("flow failed");
@@ -872,7 +874,7 @@ mod tests {
         // act
         let err = switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(Some("nope"), None, false),
         )
         .expect_err("activated a ghost");
@@ -891,7 +893,7 @@ mod tests {
         // act
         let err = switch_flow(
             &fix.ports(),
-            Settings::default(),
+            &Settings::default(),
             &request(None, None, false),
         )
         .expect_err("empty store accepted");

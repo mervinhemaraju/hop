@@ -37,7 +37,7 @@ pub(super) enum AuthFlowError {
 /// credentials turn out to be expired or revoked.
 pub(super) fn token_with_reauth(
     flow: &AuthFlow,
-    settings: Settings,
+    settings: &Settings,
     account: &AccountEmail,
 ) -> Result<TokenOutcome, AuthFlowError> {
     let token = match flow.tokens.access_token(account) {

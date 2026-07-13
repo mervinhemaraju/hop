@@ -3,8 +3,9 @@ use std::process::ExitCode;
 
 use crate::adapters::gcloud_config::GcloudConfigSource;
 use crate::adapters::gcloud_process::GcloudCli;
+use crate::adapters::hop_files::HopFiles;
 use crate::commands::EXIT_BAD_INPUT;
-use crate::core::ports::{Authenticator, ContextSource};
+use crate::core::ports::{Authenticator, ContextSource, SettingsStore};
 use crate::core::types::AccountEmail;
 
 /// Launch gcloud's login flow: the browser OAuth flow for Google accounts,
@@ -26,8 +27,17 @@ pub fn run(
         Ok(path) => path,
         Err(exit) => return exit,
     };
+    // The browser setting rides along so gcloud opens the one the user chose.
+    let settings = match HopFiles::new().and_then(|files| files.settings()) {
+        Ok(settings) => settings,
+        Err(err) => {
+            eprintln!("hop login: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
     // Composition root: gcloud is the only login backend (hybrid decision).
-    match GcloudCli.login(account.as_ref(), no_launch_browser, login_config.as_deref()) {
+    let gcloud = GcloudCli::new(settings.browser);
+    match gcloud.login(account.as_ref(), no_launch_browser, login_config.as_deref()) {
         Ok(()) => {
             eprintln!("login complete");
             ExitCode::SUCCESS

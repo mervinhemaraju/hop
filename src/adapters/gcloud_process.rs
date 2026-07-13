@@ -3,12 +3,14 @@
 //! login flows and token minting only; arguments are always passed as
 //! arrays, never concatenated into shell strings (rules/security.md).
 
+use std::env;
 use std::ffi::OsString;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::core::error::AuthError;
 use crate::core::ports::{Authenticator, TokenProvider};
+use crate::core::settings::effective_browser;
 use crate::core::types::{AccessToken, AccountEmail};
 
 // Windows installs gcloud as a .cmd shim, which Command::new("gcloud")
@@ -19,7 +21,17 @@ const GCLOUD: &str = "gcloud.cmd";
 const GCLOUD: &str = "gcloud";
 
 /// The gcloud CLI as an auth backend.
-pub struct GcloudCli;
+pub struct GcloudCli {
+    /// Browser command for login flows; `None` leaves the choice to gcloud.
+    browser: Option<PathBuf>,
+}
+
+impl GcloudCli {
+    /// gcloud with an optional browser command (the `browser` setting).
+    pub fn new(browser: Option<PathBuf>) -> Self {
+        Self { browser }
+    }
+}
 
 impl Authenticator for GcloudCli {
     fn login(
@@ -30,6 +42,15 @@ impl Authenticator for GcloudCli {
     ) -> Result<(), AuthError> {
         let mut command = Command::new(GCLOUD);
         command.args(["auth", "login", "--brief"]);
+        // gcloud launches the browser through Python's webbrowser module,
+        // which honours BROWSER; an explicit variable in hop's own
+        // environment wins over the settings value (re-setting it to the
+        // inherited value is a no-op).
+        if let Some(browser) =
+            effective_browser(env::var_os("BROWSER").as_deref(), self.browser.as_deref())
+        {
+            command.env("BROWSER", browser);
+        }
         if no_launch_browser {
             command.arg("--no-launch-browser");
         }
