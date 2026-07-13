@@ -1,0 +1,5 @@
+# Keep development-only trees out of generated source archives
+# (git archive / the "Source code" assets GitHub attaches to releases).
+/.claude export-ignore
+/.github export-ignore
+/.gitattributes export-ignore
