@@ -5,6 +5,7 @@ mod auth_flow;
 mod console;
 mod impersonate;
 mod login;
+mod project_source;
 mod status;
 mod switch;
 
@@ -49,7 +50,12 @@ pub fn run(cli: Cli) -> ExitCode {
             project,
             refresh,
         } => switch::run(name.as_deref(), project.as_deref(), refresh),
-        Command::Console { project, url } => console::run(project.as_deref(), url),
+        Command::Console {
+            name,
+            project,
+            url,
+            refresh,
+        } => console::run(name.as_deref(), project.as_deref(), url, refresh),
         Command::Impersonate {
             service_account,
             clear,

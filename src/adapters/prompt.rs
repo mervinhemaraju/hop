@@ -30,7 +30,11 @@ impl<T> fmt::Display for Choice<T> {
 }
 
 impl ConfigurationPicker for InquirePicker {
-    fn pick(&self, configurations: &[Configuration]) -> Result<Option<String>, PromptError> {
+    fn pick(
+        &self,
+        prompt: &str,
+        configurations: &[Configuration],
+    ) -> Result<Option<String>, PromptError> {
         require_terminal()?;
         let width = configurations
             .iter()
@@ -44,7 +48,7 @@ impl ConfigurationPicker for InquirePicker {
                 label: configuration_label(c, width),
             })
             .collect();
-        select("Switch to configuration:", choices)
+        select(prompt, choices)
     }
 }
 
@@ -53,7 +57,7 @@ impl ProjectPicker for InquirePicker {
         require_terminal().is_ok()
     }
 
-    fn pick(&self, projects: &[Project]) -> Result<Option<ProjectId>, PromptError> {
+    fn pick(&self, prompt: &str, projects: &[Project]) -> Result<Option<ProjectId>, PromptError> {
         require_terminal()?;
         let width = projects
             .iter()
@@ -67,7 +71,7 @@ impl ProjectPicker for InquirePicker {
                 label: project_label(p, width),
             })
             .collect();
-        select("Switch to project:", choices)
+        select(prompt, choices)
     }
 }
 

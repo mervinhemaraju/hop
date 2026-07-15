@@ -114,7 +114,7 @@ When the session expires (typically after an hour), the same short `hop login --
 ```sh
 hop            # bare hop = hop switch: pick a configuration, then a project
 hop status     # see where you are
-hop console    # open the GCP console for the active context
+hop console    # pick a configuration and project, then open its GCP console
 ```
 
 ## Usage
@@ -182,17 +182,23 @@ The browser is chosen from the `BROWSER` environment variable, then the `browser
 
 Exit codes: `0` success, `1` login failed, gcloud unavailable, or no login config found for `--sso`, `2` invalid account or missing `--login-config` file.
 
-### `hop console [--project X] [--url]`
+### `hop console [name] [--project X] [--url] [--refresh]`
 
-Open the GCP console for the active context. The URL carries `authuser=<active account>`, so the right Google session opens even when several accounts are signed in. Workforce sessions get the federated console (`auth.cloud.google` sign-in) instead of the standard one.
+Open the GCP console for a configuration and project you pick. On a terminal, `hop console` lists your configurations, then your projects (the same pickers as `hop switch`, served from the local cache), and opens the console for what you choose.
+
+Unlike `hop switch`, console **never changes your active gcloud configuration**: it only reads the chosen one's account and identity to open the console. The URL carries `authuser=<account>`, so the right Google session opens even when several accounts are signed in. Workforce sessions get the federated console (`auth.cloud.google` sign-in) instead of the standard one.
 
 ```sh
-hop console                           # active project's dashboard
-hop console --project my-project-123  # a specific project
-hop console --url                     # print the URL to stdout (no browser)
+hop console                                  # pick a configuration, then a project
+hop console work                             # use configuration `work`, then pick a project
+hop console work --project my-project-123    # no pickers, open directly
+hop console --refresh                        # re-fetch the project list first
+hop console --url                            # print the URL to stdout (no browser)
 ```
 
-`--url` writes to stdout and nothing else, so it composes: `open "$(hop console --url)"`. Exit codes: `0` opened, `1` no project set or the browser failed, `2` invalid project id.
+`name` skips the configuration picker; `--project` skips the project picker and reaches no network. Without a terminal (e.g. piped) hop uses the active configuration and its project, so `open "$(hop console --url)"` and scripts keep working. Projects are cached per account; pass `--refresh` after creating new ones.
+
+Exit codes: `0` opened, `1` no project available or the browser failed, `2` unknown configuration name or invalid project id, `4` credentials expired or revoked (run `hop login`), `130` cancelled from a picker.
 
 ### `hop impersonate [sa] [--clear]`
 

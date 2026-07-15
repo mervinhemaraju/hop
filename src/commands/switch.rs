@@ -8,18 +8,19 @@ use crate::adapters::gcloud_process::GcloudCli;
 use crate::adapters::hop_files::HopFiles;
 use crate::adapters::prompt::InquirePicker;
 use crate::adapters::resource_manager::ResourceManagerApi;
-use crate::commands::auth_flow::{AuthFlow, AuthFlowError, TokenOutcome, token_with_reauth};
+use crate::commands::project_source::{
+    ProjectSourceError, ProjectSourcePorts, Projects, obtain_projects,
+};
 use crate::commands::{
     EXIT_BAD_INPUT, EXIT_CANCELLED, EXIT_NOT_AUTHENTICATED, EXIT_NOT_INTERACTIVE,
 };
-use crate::core::context::Project;
 use crate::core::error::{ApiError, AuthError, ConfigError, PromptError, ValidationError};
 use crate::core::ports::{
     Authenticator, ConfigurationPicker, ConfigurationStore, Confirmer, ProjectCache, ProjectLister,
     ProjectPicker, SettingsStore, TokenProvider,
 };
 use crate::core::settings::Settings;
-use crate::core::types::{AccountEmail, ProjectId};
+use crate::core::types::ProjectId;
 
 // Any layer of the switch flow can fail; this keeps `?` working across all
 // of them while the exit-code mapping stays in one place.
@@ -37,11 +38,13 @@ enum SwitchError {
     InvalidProject(#[from] ValidationError),
 }
 
-impl From<AuthFlowError> for SwitchError {
-    fn from(err: AuthFlowError) -> Self {
+impl From<ProjectSourceError> for SwitchError {
+    fn from(err: ProjectSourceError) -> Self {
         match err {
-            AuthFlowError::Auth(err) => Self::Auth(err),
-            AuthFlowError::Prompt(err) => Self::Prompt(err),
+            ProjectSourceError::Auth(err) => Self::Auth(err),
+            ProjectSourceError::Prompt(err) => Self::Prompt(err),
+            ProjectSourceError::Api(err) => Self::Api(err),
+            ProjectSourceError::Config(err) => Self::Config(err),
         }
     }
 }
@@ -201,7 +204,10 @@ fn switch_flow(
     }
     let target = match request.name {
         Some(name) => name.to_string(),
-        None => match ports.config_picker.pick(&configurations)? {
+        None => match ports
+            .config_picker
+            .pick("Switch to configuration:", &configurations)?
+        {
             Some(choice) => choice,
             None => return Ok(FlowOutcome::Cancelled),
         },
@@ -246,8 +252,15 @@ fn project_half(
     if !interactive && !request.refresh {
         return Ok(ProjectOutcome::NotInteractive);
     }
+    let source = ProjectSourcePorts {
+        tokens: ports.tokens,
+        authenticator: ports.authenticator,
+        confirmer: ports.confirmer,
+        lister: ports.lister,
+        cache: ports.cache,
+    };
     let projects = match obtain_projects(
-        ports,
+        &source,
         settings,
         &account,
         login_config.as_deref().map(Path::new),
@@ -263,7 +276,7 @@ fn project_half(
     if projects.is_empty() {
         return Ok(ProjectOutcome::NoneAvailable);
     }
-    match ports.project_picker.pick(&projects) {
+    match ports.project_picker.pick("Switch to project:", &projects) {
         Ok(Some(project)) => {
             ports.store.set_project(target, &project)?;
             Ok(ProjectOutcome::Set(project))
@@ -274,50 +287,14 @@ fn project_half(
     }
 }
 
-enum Projects {
-    List(Vec<Project>),
-    ReauthDeclined,
-}
-
-// Serve projects from the cache when allowed, otherwise fetch via a fresh
-// token, re-authenticating according to the user's policy.
-fn obtain_projects(
-    ports: &Ports,
-    settings: &Settings,
-    account: &AccountEmail,
-    login_config: Option<&Path>,
-    refresh: bool,
-) -> Result<Projects, SwitchError> {
-    if !refresh {
-        if let Some(cached) = ports.cache.cached_projects(account)? {
-            if !cached.is_empty() {
-                return Ok(Projects::List(cached));
-            }
-        }
-    }
-    let flow = AuthFlow {
-        tokens: ports.tokens,
-        authenticator: ports.authenticator,
-        confirmer: ports.confirmer,
-        login_config,
-    };
-    let token = match token_with_reauth(&flow, settings, account)? {
-        TokenOutcome::Token(token) => token,
-        TokenOutcome::Declined => return Ok(Projects::ReauthDeclined),
-    };
-    let projects = ports.lister.list_projects(&token)?;
-    ports.cache.store_projects(account, &projects)?;
-    Ok(Projects::List(projects))
-}
-
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
 
     use super::*;
-    use crate::core::context::Configuration;
+    use crate::core::context::{Configuration, Project};
     use crate::core::settings::ReauthPolicy;
-    use crate::core::types::{AccessToken, ServiceAccount};
+    use crate::core::types::{AccessToken, AccountEmail, ServiceAccount};
 
     struct FakeStore {
         configurations: Vec<Configuration>,
@@ -376,7 +353,7 @@ mod tests {
     struct FakeConfigPicker(Option<String>);
 
     impl ConfigurationPicker for FakeConfigPicker {
-        fn pick(&self, _: &[Configuration]) -> Result<Option<String>, PromptError> {
+        fn pick(&self, _: &str, _: &[Configuration]) -> Result<Option<String>, PromptError> {
             Ok(self.0.clone())
         }
     }
@@ -391,7 +368,7 @@ mod tests {
             self.available
         }
 
-        fn pick(&self, _: &[Project]) -> Result<Option<ProjectId>, PromptError> {
+        fn pick(&self, _: &str, _: &[Project]) -> Result<Option<ProjectId>, PromptError> {
             if !self.available {
                 return Err(PromptError::NotInteractive);
             }
