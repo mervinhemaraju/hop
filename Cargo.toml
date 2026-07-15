@@ -1,6 +1,6 @@
 [package]
 name = "hop"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 # Minimum toolchain: 1.87 un-deprecated std::env::home_dir (used for gcloud
 # config dir resolution); raise deliberately, never implicitly
