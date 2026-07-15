@@ -35,8 +35,15 @@ pub trait ConfigurationStore {
 
 /// Lets the user choose a configuration interactively.
 pub trait ConfigurationPicker {
-    /// Present the choices; `Ok(None)` means the user cancelled.
-    fn pick(&self, configurations: &[Configuration]) -> Result<Option<String>, PromptError>;
+    /// Present the choices under `prompt`; `Ok(None)` means the user
+    /// cancelled. `prompt` lets callers phrase the action (switch vs open).
+    /// `show_principal` reveals each configuration's account/principal column.
+    fn pick(
+        &self,
+        prompt: &str,
+        show_principal: bool,
+        configurations: &[Configuration],
+    ) -> Result<Option<String>, PromptError>;
 }
 
 /// Lets the user choose a project interactively.
@@ -46,8 +53,9 @@ pub trait ProjectPicker {
     fn available(&self) -> bool {
         true
     }
-    /// Present the choices; `Ok(None)` means the user cancelled.
-    fn pick(&self, projects: &[Project]) -> Result<Option<ProjectId>, PromptError>;
+    /// Present the choices under `prompt`; `Ok(None)` means the user
+    /// cancelled. `prompt` lets callers phrase the action (switch vs open).
+    fn pick(&self, prompt: &str, projects: &[Project]) -> Result<Option<ProjectId>, PromptError>;
 }
 
 /// Asks the user a yes/no question.

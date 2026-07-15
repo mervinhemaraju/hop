@@ -4,6 +4,36 @@ All notable changes to hop are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and hop adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-15
+
+### Added
+
+- `hop console` now opens an interactive picker flow like `hop switch`: choose
+  a configuration, then a project, then it opens that project's console. The
+  configuration name skips the config picker, `--project` skips the project
+  picker, and `--refresh` re-fetches the project list. Without a terminal
+  (e.g. piped), it uses the active configuration and its project so scripts
+  keep working. Console is read-only: it never changes your active gcloud
+  configuration, only reads the chosen one's account and identity.
+- `--show-principal` on `hop switch` and `hop console`: the configuration
+  picker hides each entry's account/principal by default and reveals it with
+  this flag.
+
+### Changed
+
+- The configuration picker label is now `name  project  (active)`; the
+  account/principal is hidden unless `--show-principal` is passed.
+
+### Fixed
+
+- Re-authentication for workforce (SSO) sessions. When credentials expired,
+  hop passed the `principal://…` account as a positional argument to
+  `gcloud auth login` alongside `--login-config`, so gcloud tried to refresh
+  the expired token (`invalid_grant`) instead of a fresh federated sign-in.
+  hop now omits the account positional whenever a login config is present, so
+  `switch`, `console`, and `impersonate` re-authenticate correctly for
+  workforce identities.
+
 ## [0.1.0] - 2026-07-13
 
 First public release.
@@ -49,4 +79,5 @@ First public release.
 - hop's cache files are created with owner-only (0600) permissions on Unix.
 - No telemetry, no update checks, no data leaves your machine.
 
+[0.2.0]: https://github.com/mervinhemaraju/hop/releases/tag/v0.2.0
 [0.1.0]: https://github.com/mervinhemaraju/hop/releases/tag/v0.1.0
