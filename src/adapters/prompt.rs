@@ -33,6 +33,7 @@ impl ConfigurationPicker for InquirePicker {
     fn pick(
         &self,
         prompt: &str,
+        show_principal: bool,
         configurations: &[Configuration],
     ) -> Result<Option<String>, PromptError> {
         require_terminal()?;
@@ -45,7 +46,7 @@ impl ConfigurationPicker for InquirePicker {
             .iter()
             .map(|c| Choice {
                 value: c.name.clone(),
-                label: configuration_label(c, width),
+                label: configuration_label(c, width, show_principal),
             })
             .collect();
         select(prompt, choices)
@@ -131,14 +132,24 @@ fn select<T>(message: &str, choices: Vec<Choice<T>>) -> Result<Option<T>, Prompt
     }
 }
 
-fn configuration_label(configuration: &Configuration, width: usize) -> String {
-    let account = configuration
-        .account
-        .as_ref()
-        .map_or_else(|| "(no account)".to_string(), ToString::to_string);
-    let mut label = format!("{:<width$}  {account}", configuration.name);
+// Default columns are name, project, and the active marker; the
+// account/principal is hidden unless the caller asks to reveal it
+// (`--show-principal`), since it is long and rarely needed while switching.
+fn configuration_label(
+    configuration: &Configuration,
+    width: usize,
+    show_principal: bool,
+) -> String {
+    let mut label = format!("{:<width$}", configuration.name);
+    if show_principal {
+        let account = configuration
+            .account
+            .as_ref()
+            .map_or_else(|| "(no account)".to_string(), ToString::to_string);
+        label.push_str(&format!("  {account}"));
+    }
     if let Some(project) = &configuration.project {
-        label.push_str(&format!(" / {project}"));
+        label.push_str(&format!("  {project}"));
     }
     if configuration.is_active {
         label.push_str("  (active)");

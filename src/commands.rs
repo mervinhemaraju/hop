@@ -33,6 +33,7 @@ pub fn run(cli: Cli) -> ExitCode {
         name: None,
         project: None,
         refresh: false,
+        show_principal: false,
     }) {
         Command::Login {
             account,
@@ -49,13 +50,21 @@ pub fn run(cli: Cli) -> ExitCode {
             name,
             project,
             refresh,
-        } => switch::run(name.as_deref(), project.as_deref(), refresh),
+            show_principal,
+        } => switch::run(name.as_deref(), project.as_deref(), refresh, show_principal),
         Command::Console {
             name,
             project,
             url,
             refresh,
-        } => console::run(name.as_deref(), project.as_deref(), url, refresh),
+            show_principal,
+        } => console::run(
+            name.as_deref(),
+            project.as_deref(),
+            url,
+            refresh,
+            show_principal,
+        ),
         Command::Impersonate {
             service_account,
             clear,

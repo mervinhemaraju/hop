@@ -98,6 +98,7 @@ struct Request<'a> {
     name: Option<&'a str>,
     project: Option<&'a str>,
     refresh: bool,
+    show_principal: bool,
 }
 
 #[derive(Debug)]
@@ -112,7 +113,13 @@ enum ConsoleOutcome {
 }
 
 /// Open the GCP console in the browser for a chosen (or given) project.
-pub fn run(name: Option<&str>, project: Option<&str>, url_only: bool, refresh: bool) -> ExitCode {
+pub fn run(
+    name: Option<&str>,
+    project: Option<&str>,
+    url_only: bool,
+    refresh: bool,
+    show_principal: bool,
+) -> ExitCode {
     // Composition root: production adapters are chosen here and only here.
     let store = match GcloudConfigSource::new() {
         Ok(store) => store,
@@ -143,6 +150,7 @@ pub fn run(name: Option<&str>, project: Option<&str>, url_only: bool, refresh: b
         name,
         project,
         refresh,
+        show_principal,
     };
     match console_flow(&ports, &settings, &request) {
         Ok(ConsoleOutcome::Cancelled) => {
@@ -185,10 +193,11 @@ fn console_flow(
     let target = match request.name {
         Some(name) => find_named(&configurations, name)?,
         None if interactive => {
-            match ports
-                .config_picker
-                .pick("Open configuration:", &configurations)?
-            {
+            match ports.config_picker.pick(
+                "Open configuration:",
+                request.show_principal,
+                &configurations,
+            )? {
                 Some(name) => find_named(&configurations, &name)?,
                 None => return Ok(ConsoleOutcome::Cancelled),
             }
@@ -384,7 +393,12 @@ mod tests {
     struct FakeConfigPicker(Option<String>);
 
     impl ConfigurationPicker for FakeConfigPicker {
-        fn pick(&self, _: &str, _: &[Configuration]) -> Result<Option<String>, PromptError> {
+        fn pick(
+            &self,
+            _: &str,
+            _: bool,
+            _: &[Configuration],
+        ) -> Result<Option<String>, PromptError> {
             Ok(self.0.clone())
         }
     }
@@ -392,7 +406,12 @@ mod tests {
     struct PanickingConfigPicker;
 
     impl ConfigurationPicker for PanickingConfigPicker {
-        fn pick(&self, _: &str, _: &[Configuration]) -> Result<Option<String>, PromptError> {
+        fn pick(
+            &self,
+            _: &str,
+            _: bool,
+            _: &[Configuration],
+        ) -> Result<Option<String>, PromptError> {
             panic!("the configuration picker must not be consulted");
         }
     }
@@ -566,6 +585,7 @@ mod tests {
             name,
             project,
             refresh,
+            show_principal: false,
         }
     }
 

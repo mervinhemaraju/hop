@@ -37,9 +37,11 @@ pub trait ConfigurationStore {
 pub trait ConfigurationPicker {
     /// Present the choices under `prompt`; `Ok(None)` means the user
     /// cancelled. `prompt` lets callers phrase the action (switch vs open).
+    /// `show_principal` reveals each configuration's account/principal column.
     fn pick(
         &self,
         prompt: &str,
+        show_principal: bool,
         configurations: &[Configuration],
     ) -> Result<Option<String>, PromptError>;
 }

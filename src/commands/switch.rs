@@ -82,6 +82,7 @@ struct Request<'a> {
     name: Option<&'a str>,
     project: Option<&'a str>,
     refresh: bool,
+    show_principal: bool,
 }
 
 #[derive(Debug)]
@@ -111,7 +112,12 @@ enum ProjectOutcome {
 }
 
 /// Switch the active gcloud configuration and optionally its project.
-pub fn run(name: Option<&str>, project: Option<&str>, refresh: bool) -> ExitCode {
+pub fn run(
+    name: Option<&str>,
+    project: Option<&str>,
+    refresh: bool,
+    show_principal: bool,
+) -> ExitCode {
     // Composition root: production adapters are chosen here and only here.
     let store = match GcloudConfigSource::new() {
         Ok(store) => store,
@@ -142,6 +148,7 @@ pub fn run(name: Option<&str>, project: Option<&str>, refresh: bool) -> ExitCode
         name,
         project,
         refresh,
+        show_principal,
     };
     match switch_flow(&ports, &settings, &request) {
         Ok(FlowOutcome::Cancelled) => {
@@ -204,10 +211,11 @@ fn switch_flow(
     }
     let target = match request.name {
         Some(name) => name.to_string(),
-        None => match ports
-            .config_picker
-            .pick("Switch to configuration:", &configurations)?
-        {
+        None => match ports.config_picker.pick(
+            "Switch to configuration:",
+            request.show_principal,
+            &configurations,
+        )? {
             Some(choice) => choice,
             None => return Ok(FlowOutcome::Cancelled),
         },
@@ -353,7 +361,12 @@ mod tests {
     struct FakeConfigPicker(Option<String>);
 
     impl ConfigurationPicker for FakeConfigPicker {
-        fn pick(&self, _: &str, _: &[Configuration]) -> Result<Option<String>, PromptError> {
+        fn pick(
+            &self,
+            _: &str,
+            _: bool,
+            _: &[Configuration],
+        ) -> Result<Option<String>, PromptError> {
             Ok(self.0.clone())
         }
     }
@@ -504,6 +517,7 @@ mod tests {
             name,
             project,
             refresh,
+            show_principal: false,
         }
     }
 

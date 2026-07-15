@@ -144,10 +144,13 @@ hop switch                                  # pick a configuration, then a proje
 hop switch work                             # switch configuration, then pick a project
 hop switch work --project my-project-123    # fully non-interactive (script-friendly)
 hop switch work --refresh                   # also re-fetch the project list from GCP
+hop switch --show-principal                  # reveal each config's account/principal
 hop                                         # bare `hop` is a shortcut for `hop switch`
 ```
 
 Projects are fetched from the Cloud Resource Manager API once and cached locally, so the picker opens instantly and works offline afterwards. Pass `--refresh` after creating or gaining access to new projects. Pressing Esc at the project picker keeps the configuration switch and leaves the project as it was.
+
+The configuration picker shows each entry as `name   project   (active)`. The account/principal is hidden by default (it is long and rarely needed while switching); pass `--show-principal` to add it: `name   principal   project   (active)`.
 
 If the account's credentials turn out to be expired, hop offers to run the login flow right there (see [Settings](#settings) to make that automatic or turn it off).
 
@@ -193,10 +196,11 @@ hop console                                  # pick a configuration, then a proj
 hop console work                             # use configuration `work`, then pick a project
 hop console work --project my-project-123    # no pickers, open directly
 hop console --refresh                        # re-fetch the project list first
+hop console --show-principal                  # reveal each config's account/principal
 hop console --url                            # print the URL to stdout (no browser)
 ```
 
-`name` skips the configuration picker; `--project` skips the project picker and reaches no network. Without a terminal (e.g. piped) hop uses the active configuration and its project, so `open "$(hop console --url)"` and scripts keep working. Projects are cached per account; pass `--refresh` after creating new ones.
+`name` skips the configuration picker; `--project` skips the project picker and reaches no network. `--show-principal` reveals the account/principal column in the configuration picker (hidden by default). Without a terminal (e.g. piped) hop uses the active configuration and its project, so `open "$(hop console --url)"` and scripts keep working. Projects are cached per account; pass `--refresh` after creating new ones.
 
 Exit codes: `0` opened, `1` no project available or the browser failed, `2` unknown configuration name or invalid project id, `4` credentials expired or revoked (run `hop login`), `130` cancelled from a picker.
 

@@ -57,6 +57,9 @@ Projects are listed from the Cloud Resource Manager API and cached locally,
 so the picker opens instantly; pass --refresh after creating new projects.
 Pressing Esc at the project picker keeps the configuration switch.
 
+The configuration picker hides each entry's account/principal by default;
+pass --show-principal to reveal it.
+
 The switch is global: it updates gcloud's own active configuration, so every
 terminal and prompt tool reflects it immediately.
 
@@ -76,6 +79,9 @@ Exit codes:
         /// Re-fetch the project list from GCP instead of using the local cache
         #[arg(long)]
         refresh: bool,
+        /// Show each configuration's account/principal in the picker
+        #[arg(long)]
+        show_principal: bool,
     },
     /// Open the GCP console in the browser for a chosen configuration and project
     #[command(after_long_help = "\
@@ -93,6 +99,9 @@ reads the chosen one's account and identity to open the console. Without a
 terminal (e.g. piped), it uses the active configuration and its project so
 scripts keep working. Projects are cached locally; pass --refresh after
 creating new ones.
+
+The configuration picker hides each entry's account/principal by default;
+pass --show-principal to reveal it.
 
 The URL pins the console to the chosen configuration's account (authuser), so
 the right Google session opens even with multiple accounts signed in.
@@ -118,6 +127,9 @@ Exit codes:
         /// Re-fetch the project list from GCP instead of using the local cache
         #[arg(long)]
         refresh: bool,
+        /// Show each configuration's account/principal in the picker
+        #[arg(long)]
+        show_principal: bool,
     },
     /// Impersonate a service account on the active configuration
     #[command(after_long_help = "\
